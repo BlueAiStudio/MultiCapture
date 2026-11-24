@@ -27,6 +27,10 @@ The built-in Snipping Tool keeps one capture at a time. MultiCapture HAO keeps *
 - **Global hotkey** `Ctrl+Alt+S`. Region, full-screen and last-region modes, with an optional delay.
 - **Languages**: English, Français, 中文. A built-in user guide is under Help.
 
+### Download
+
+Get `MultiCapture_HAO.exe` from the [latest release](https://github.com/xieganglaoliu/MultiCapture/releases/latest). It is portable: no installer and no Python needed. Windows SmartScreen may warn because the exe is not code-signed; choose **More info → Run anyway**.
+
 ### Run from source
 
 Requires Windows 10/11 and Python 3.10+.
@@ -78,6 +82,8 @@ Session data is stored in `%APPDATA%\MultiCapture_HAO\`.
 - 「删除」菜单可以删除当前截图、整个宫格或全部截图；
 - 全局快捷键 `Ctrl+Alt+S`；界面支持中文、英文、法文，并内置使用说明。
 
+下载：在 [Releases](https://github.com/xieganglaoliu/MultiCapture/releases/latest) 页面下载 `MultiCapture_HAO.exe`，免安装、不需要 Python。
+
 运行源码：`pip install Pillow`，然后执行 `python multicapture.py`。打包：运行 `build.ps1`，生成的 `dist\MultiCapture_HAO.exe` 是免安装版，双击即可使用。
 
 ---
@@ -92,6 +98,8 @@ L'Outil Capture d'écran ne garde qu'une capture à la fois. MultiCapture HAO le
 - Mesures façon PDF : distance, périmètre, surface, angle ;
 - Panneau de notes, export PNG / JPG / BMP / PDF, demande d'enregistrement à la fermeture ;
 - Interface en français, anglais et chinois, avec un guide intégré.
+
+Téléchargement : `MultiCapture_HAO.exe` dans les [Releases](https://github.com/xieganglaoliu/MultiCapture/releases/latest), sans installation ni Python.
 
 Lancement : `pip install Pillow`, puis `python multicapture.py`. Pour créer l'exe portable, lancez `build.ps1`.
 
