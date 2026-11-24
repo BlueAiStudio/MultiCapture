@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 MultiCapture HAO  -  multi-screenshot board for Windows
 
@@ -23,7 +23,6 @@ import json
 import math
 import os
 import queue
-import shutil
 import sys
 import threading
 import time
@@ -41,7 +40,9 @@ MODE_KEYS = ["Region", "Full screen", "Last region"]
 DELAY_KEYS = ["No delay", "3 s", "5 s", "10 s"]
 
 APP_NAME = "MultiCapture HAO"
-VERSION = "1.3"
+VERSION = "1.3.1"
+# Full-size screenshots kept in RAM at once; older ones are reloaded from the session folder on demand.
+MAX_LOADED = 16
 
 # --------------------------------------------------------------------------- DPI
 try:
@@ -1309,6 +1310,7 @@ class App:
         self._last_prop = (None, None, 0)
         self._notes_loading = False
         self.copy_gen = 0
+        self._tick = 0
         self.q = queue.Queue()
 
         st = self.st
@@ -1729,15 +1731,45 @@ class App:
 
     # ===================================================================== items
     def new_item(self, img, **kw):
-        it = {"id": uuid.uuid4().hex[:12], "orig": img, "objs": [], "notes": "", "time": datetime.now(),
+        it = {"id": uuid.uuid4().hex[:12], "orig": img, "size": img.size, "objs": [], "notes": "", "time": datetime.now(),
               "scale": None, "num": self.st["next_num"], "undo": [], "redo": [], "_final": None, "dirty": True}
         self.st["next_num"] += 1
         it.update(kw)
         return it
 
+    def img_of(self, it):
+        """Full-size original of a screenshot, reloaded from the session folder if it was evicted."""
+        im = it.get("orig")
+        if im is None:
+            self._wait_saved(it)
+            try:
+                with Image.open(os.path.join(SESSION_DIR, it["id"] + ".png")) as f:
+                    im = f.convert("RGB")
+            except Exception as ex:   # file removed or damaged outside the app
+                print("reload", it["id"], ex)
+                im = Image.new("RGB", it["size"], "#D1D5DB")
+                it["on_disk"] = False
+            it["orig"] = im
+        self._tick += 1
+        it["_used"] = self._tick
+        self._evict()
+        return im
+
+    def _evict(self):
+        loaded = [i for i in self.items if i.get("orig") is not None and i.get("on_disk")]
+        if len(loaded) <= MAX_LOADED:
+            return
+        keep = {id(i) for i in self.board_items()} | {id(self.sel)}
+        loaded.sort(key=lambda i: i.get("_used", 0))
+        for i in loaded[:len(loaded) - MAX_LOADED]:
+            if id(i) not in keep:
+                i["orig"] = None
+                i["_final"] = None
+                i["_gkey"] = None
+
     def final(self, it):
         if it.get("_final") is None:
-            img = it["orig"].convert("RGBA")
+            img = self.img_of(it).convert("RGBA")
             draw_objects(img, it["objs"], 1.0, 0, 0, self.scale_of(it))
             it["_final"] = img.convert("RGB")
         return it["_final"]
@@ -1787,7 +1819,8 @@ class App:
         mode = self._key(self.mode_var, MODE_KEYS)
         if mode == "Full screen":
             self._capture_done(shot, None)
-        elif mode == "Last region" and self.last_region:
+        elif (mode == "Last region" and self.last_region and self.last_region[2] <= shot.width
+              and self.last_region[3] <= shot.height):
             self._capture_done(shot.crop(self.last_region), self.last_region)
         else:
             RegionSelector(self.root, shot, virtual_screen(), self._capture_done)
@@ -1830,9 +1863,26 @@ class App:
         os.makedirs(SESSION_DIR, exist_ok=True)
         img = it["orig"]
         p = os.path.join(SESSION_DIR, it["id"] + ".png")
-        threading.Thread(target=lambda: img.save(p, compress_level=3), daemon=True).start()
+
+        def work():
+            # write to a temp file first, so an interrupted save never leaves a truncated PNG
+            try:
+                img.save(p + ".tmp", "PNG", compress_level=3)
+                os.replace(p + ".tmp", p)
+                it["on_disk"] = True
+            except Exception as ex:
+                print("png save", ex)
+        t = threading.Thread(target=work)
+        it["_save_thread"] = t
+        t.start()
         self._save_meta(it)
         self._save_board()
+
+    def _wait_saved(self, it):
+        t = it.get("_save_thread")
+        if t is not None:
+            t.join()
+            it["_save_thread"] = None
 
     def _save_meta(self, it):
         if not self.keep_history.get():
@@ -1856,7 +1906,8 @@ class App:
             pass
 
     def _delete_files(self, it):
-        for ext in (".png", ".json"):
+        self._wait_saved(it)
+        for ext in (".png", ".json", ".png.tmp"):
             try:
                 os.remove(os.path.join(SESSION_DIR, it["id"] + ext))
             except OSError:
@@ -1874,20 +1925,28 @@ class App:
                         metas.append(json.load(f))
                 except Exception:
                     pass
-        metas.sort(key=lambda m: m.get("time", ""))
+        metas = [m for m in metas if isinstance(m, dict) and isinstance(m.get("id"), str)]
+        metas.sort(key=lambda m: str(m.get("time", "")))
         byid = {}
         for m in metas:
             p = os.path.join(SESSION_DIR, m["id"] + ".png")
-            if not os.path.exists(p):
-                continue
             try:
-                with Image.open(p) as im:
-                    img = im.convert("RGB")
-            except Exception:
+                with Image.open(p) as im:   # reads only the header; pixels load on demand
+                    size = im.size
+                t = datetime.fromisoformat(m["time"])
+                objs = [o for o in m.get("objs") or [] if isinstance(o, dict) and "type" in o]
+            except Exception as ex:
+                print("skipping session item", m.get("id"), ex)
+                if not os.path.exists(p):   # orphan metadata left by an interrupted save
+                    try:
+                        os.remove(os.path.join(SESSION_DIR, m["id"] + ".json"))
+                    except OSError:
+                        pass
                 continue
-            it = {"id": m["id"], "orig": img, "objs": m.get("objs", []), "notes": m.get("notes", ""),
-                  "time": datetime.fromisoformat(m["time"]), "scale": m.get("scale"), "num": m.get("num", 0),
-                  "undo": [], "redo": [], "_final": None, "dirty": m.get("dirty", False)}
+            it = {"id": m["id"], "orig": None, "size": size, "on_disk": True, "objs": objs,
+                  "notes": str(m.get("notes") or ""), "time": t, "scale": m.get("scale"),
+                  "num": int(m.get("num") or 0), "undo": [], "redo": [], "_final": None,
+                  "dirty": bool(m.get("dirty", False))}
             for o in it["objs"]:
                 o.setdefault("id", uuid.uuid4().hex[:8])
             self.items.insert(0, it)
@@ -1896,6 +1955,8 @@ class App:
         try:
             with open(os.path.join(SESSION_DIR, "board.json"), encoding="utf-8") as f:
                 order = json.load(f).get("order", [])
+            if not isinstance(order, list):
+                order = []
         except Exception:
             pass
         self.board = [byid[i] for i in order if i in byid]
@@ -1956,7 +2017,7 @@ class App:
             return
         on_board = it in self.board_items() and self.view_n() != 1
         marks = ("  ●" if it["objs"] else "") + ("  ¶" if it["notes"].strip() else "") + ("  ▦" if on_board else "")
-        c[2].configure(text=f"#{it['num']}  {it['time']:%d/%m %H:%M:%S}   {it['orig'].width}×{it['orig'].height}{marks}")
+        c[2].configure(text=f"#{it['num']}  {it['time']:%d/%m %H:%M:%S}   {it['size'][0]}×{it['size'][1]}{marks}")
 
     def _update_cards(self):
         for it in self.items:
@@ -2148,7 +2209,7 @@ class App:
         it = self.sel
         if not it:
             return
-        W, H = it["orig"].size
+        W, H = it["size"]
         if self.fit:
             self.s = max(0.02, min((cw - 48) / W, (ch - 48) / H, 1.0))
             self.vx = -(cw / self.s - W) / 2
@@ -2162,7 +2223,7 @@ class App:
             return
         key = (it["id"], round(s, 6), ix0, iy0, ix1, iy1)
         if self._base_key != key:
-            crop = it["orig"].crop((ix0, iy0, ix1, iy1))
+            crop = self.img_of(it).crop((ix0, iy0, ix1, iy1))
             dw, dh = max(1, round((ix1 - ix0) * s)), max(1, round((iy1 - iy0) * s))
             rs = Image.LANCZOS if s < 1 else (Image.NEAREST if s >= 3 else Image.BICUBIC)
             self._base = (crop.resize((dw, dh), rs) if (dw, dh) != crop.size else crop).convert("RGBA")
@@ -3281,8 +3342,15 @@ class App:
                                     initialdir=self.st.get("last_dir") or DEFAULT_SAVE_DIR)
         if not d:
             return
-        for it in reversed(self.items):
-            self.with_notes(it).save(os.path.join(d, f"Capture_{it['num']:03d}_{it['time']:%Y%m%d_%H%M%S}.png"))
+        done = []
+        try:
+            for it in reversed(self.items):
+                save_image(self.with_notes(it), os.path.join(d, f"Capture_{it['num']:03d}_{it['time']:%Y%m%d_%H%M%S}.png"))
+                done.append(it)
+        except Exception as ex:
+            self._mark_saved(done)
+            messagebox.showerror(tr("Save failed"), str(ex), parent=self.root)
+            return
         self.st["last_dir"] = d
         self._mark_saved(self.items)
         self.set_status(tr("{n} screenshots saved to {d}", n=len(self.items), d=d))
@@ -3325,8 +3393,12 @@ class App:
                                          filetypes=[("PDF document", "*.pdf")])
         if not p:
             return
-        pages = [self.with_notes(it, title=True).convert("RGB") for it in items]
-        pages[0].save(p, "PDF", resolution=96, save_all=True, append_images=pages[1:])
+        try:
+            pages = [self.with_notes(it, title=True).convert("RGB") for it in items]
+            pages[0].save(p, "PDF", resolution=96, save_all=True, append_images=pages[1:])
+        except Exception as ex:
+            messagebox.showerror(tr("Save failed"), str(ex), parent=self.root)
+            return
         self.st["last_dir"] = os.path.dirname(p)
         self._mark_saved(items)
         self.set_status(tr("PDF with {n} page(s) saved: {p}", n=len(pages), p=p))
@@ -3627,6 +3699,8 @@ class App:
         for key in list(self._jobs):
             j = self._jobs.pop(key)
             self.root.after_cancel(j)
+        for it in self.items:
+            self._wait_saved(it)
         if self.keep_history.get():
             for it in self.items:
                 self._save_meta(it)
@@ -3655,7 +3729,11 @@ def main():
     if app.restart:
         import subprocess
         args = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, os.path.abspath(__file__)]
-        subprocess.Popen(args, close_fds=True)
+        env = dict(os.environ)
+        # PyInstaller onefile: make the new process unpack its own copy instead of reusing ours,
+        # which is deleted when this process exits.
+        env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+        subprocess.Popen(args, close_fds=True, env=env)
 
 
 if __name__ == "__main__":
