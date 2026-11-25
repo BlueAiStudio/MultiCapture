@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
+PackageIdentifier: xieganglaoliu.MultiCapture
+PackageVersion: 1.4.0
+InstallerType: portable
+Commands:
+- multicapture
+ReleaseDate: 2026-11-25
+Installers:
+- Architecture: x64
+  InstallerUrl: https://github.com/xieganglaoliu/MultiCapture/releases/download/v1.4.0/MultiCapture.exe
+  InstallerSha256: 9F3AF6B5F095B11A44DB53CCCD50D52A483E1E2F053EB249C0AFFA560C639F27
+ManifestType: installer
+ManifestVersion: 1.6.0

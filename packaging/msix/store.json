@@ -1,0 +1,6 @@
+{
+  "_comment": "Values from Partner Center > your app > Product identity. Replace the three PLACEHOLDER values after reserving the name 'MultiCapture' (see docs/STORE.md).",
+  "IdentityName": "PLACEHOLDER.MultiCapture",
+  "Publisher": "CN=00000000-0000-0000-0000-000000000000",
+  "PublisherDisplayName": "PLACEHOLDER"
+}

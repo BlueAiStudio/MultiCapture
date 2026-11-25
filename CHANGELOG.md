@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Microsoft Store package**: `build_msix.ps1` builds an MSIX package (signed by the Store when published). In the Store version, settings and history live in the package's own data folder, so "Open folder" opens the right place. CI test-installs the package, checks that it starts, and makes the Store screenshots.
+- **Code signing** of `MultiCapture.exe` in CI with Azure Artifact Signing, switched on by adding the repository secrets (see `docs/CODE_SIGNING.md`).
+- winget manifests (`packaging/winget`), Store listing texts (`docs/STORE.md`) and a privacy policy (`PRIVACY.md`).
+
 ## 1.4.0
 
 Four optional features. Each one is off by default and switched on in **Options → Extra features**; while it is off the window looks exactly as before.

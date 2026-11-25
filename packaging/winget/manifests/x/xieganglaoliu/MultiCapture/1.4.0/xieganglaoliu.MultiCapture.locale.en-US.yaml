@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+PackageIdentifier: xieganglaoliu.MultiCapture
+PackageVersion: 1.4.0
+PackageLocale: en-US
+Publisher: xieganglaoliu
+PublisherUrl: https://github.com/xieganglaoliu
+PublisherSupportUrl: https://github.com/xieganglaoliu/MultiCapture/issues
+PackageName: MultiCapture
+PackageUrl: https://github.com/xieganglaoliu/MultiCapture
+License: MIT
+LicenseUrl: https://github.com/xieganglaoliu/MultiCapture/blob/main/LICENSE
+ShortDescription: Multi-screenshot board for Windows - every capture is kept, laid out in a grid, annotated and copied.
+Description: |-
+  The built-in Snipping Tool keeps one capture at a time. MultiCapture keeps all of them in a history panel,
+  so you can compare, arrange, annotate and paste several screenshots at once without saving files.
+  Global hotkey Ctrl+Alt+S, editable annotations, measurements, PDF export, themes, and optional OCR,
+  pin-on-top, scrolling capture and GIF recording.
+Tags:
+- screenshot
+- screen-capture
+- snipping
+- annotation
+- productivity
+ReleaseNotesUrl: https://github.com/xieganglaoliu/MultiCapture/releases/tag/v1.4.0
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0
