@@ -130,6 +130,9 @@ def make_flowers():
         "options": down(flower(96, "#B39DDB", "#FFF59D", n=8, petal_w=.2), (96, 96)),
         "themes": down(rose(96), (96, 96)),
         "help": down(tulip(96, "#FFB74D", "#F57C00"), (96, 96)),
+        "pin": down(tulip(96, "#BA68C8", "#8E24AA"), (96, 96)),
+        "ocr": down(flower(96, "#81D4FA", "#FFF59D", n=6, petal_w=.3), (96, 96)),
+        "record": down(rose(96, "#E53935", "#B71C1C", "#EF9A9A"), (96, 96)),
     }
     for k, im in head.items():
         save(im, tid, "icons", f"{k}.png")

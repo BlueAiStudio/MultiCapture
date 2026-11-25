@@ -14,6 +14,8 @@ MultiCapture  -  multi-screenshot board for Windows
 * Notes panel per screenshot (optionally included when copying / exporting)
 * Export PNG / JPG / BMP / PDF, all screenshots to PNG files or one PDF
 * Global hotkey Ctrl+Alt+S
+* Optional extras (off by default, Options -> Extra features): pin to screen, text recognition (OCR),
+  scrolling capture, screen recording to GIF - see extras.py
 """
 import copy
 import ctypes
@@ -34,14 +36,21 @@ from tkinter import colorchooser, filedialog, messagebox, simpledialog, ttk
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageGrab, ImageTk
 
+import extras
 import themes
 from i18n import LANG, LANGS, detect_lang, guide_text, shortcuts_text, tr
 
 MODE_KEYS = ["Region", "Full screen", "Last region"]
+SCROLL_MODE = "Scrolling"          # extra capture mode, only offered when scrolling capture is switched on
+ALL_MODES = MODE_KEYS + [SCROLL_MODE]
+# Optional features: settings key -> menu label. All are off until switched on in Options -> Extra features.
+FEATURES = [("feat_pin", "Pin to screen"), ("feat_ocr", "Text recognition (OCR)"),
+            ("feat_scroll", "Scrolling capture"), ("feat_record", "Screen recording (GIF)")]
+REC_FPS = [5, 10, 15]
 DELAY_KEYS = ["No delay", "3 s", "5 s", "10 s"]
 
 APP_NAME = "MultiCapture"
-VERSION = "1.3.2"
+VERSION = "1.4.0"
 # Full-size screenshots kept in RAM at once; older ones are reloaded from the session folder on demand.
 MAX_LOADED = 16
 
@@ -175,6 +184,8 @@ DEFAULT_SETTINGS = {
     "geometry": "1440x880", "mode": "Region", "delay": "No delay", "lang": None, "guide_shown": False,
     "ask_on_close": True, "last_dir": DEFAULT_SAVE_DIR, "close_fmt": "PNG", "close_what": "unsaved",
     "open_after_save": False, "theme": "default", "theme_frame": True,
+    "feat_pin": False, "feat_ocr": False, "feat_scroll": False, "feat_record": False,
+    "ocr_lang": "", "rec_fps": 10,
 }
 
 # --------------------------------------------------------------------------- fonts
@@ -1744,7 +1755,12 @@ class App:
         st = self.st
         self.view = tk.StringVar(value=st["view"])
         self.tool = tk.StringVar(value="select")
-        self.mode_var = tk.StringVar(value=tr(st.get("mode") if st.get("mode") in MODE_KEYS else "Region"))
+        self.feat = {k: tk.BooleanVar(value=bool(st.get(k))) for k, _ in FEATURES}
+        self.pins = []
+        mode = st.get("mode")
+        if mode not in MODE_KEYS and not (mode == SCROLL_MODE and self.feat["feat_scroll"].get()):
+            mode = "Region"
+        self.mode_var = tk.StringVar(value=tr(mode))
         self.delay_var = tk.StringVar(value=tr(st.get("delay") if st.get("delay") in DELAY_KEYS else "No delay"))
         self.autocopy = tk.BooleanVar(value=st["autocopy"])
         self.include_notes = tk.BooleanVar(value=st["include_notes"])
@@ -1834,7 +1850,8 @@ class App:
                    font=UI_BIG, padx=14, pady=6, **self._hbtn("capture", "＋", tr("New capture"), 20),
                    tip=tr("New capture  (Ctrl+N)\nGlobal hotkey from anywhere: Ctrl+Alt+S")).pack(side="left", pady=8)
         cb = ttk.Combobox(head, textvariable=self.mode_var, state="readonly", width=12,
-                          values=[tr(k) for k in MODE_KEYS])
+                          values=[tr(k) for k in self._mode_keys()])
+        self.mode_cb = cb
         cb.pack(side="left", padx=(8, 4))
         Tooltip(cb, tr("Capture mode"), below=True)
         cb2 = ttk.Combobox(head, textvariable=self.delay_var, state="readonly", width=9,
@@ -1843,6 +1860,8 @@ class App:
         Tooltip(cb2, tr("Delay before capture"), below=True)
         for w in (cb, cb2):
             w.bind("<<ComboboxSelected>>", lambda e: self.root.focus_set())
+        self.extra_bar = tk.Frame(head, bg=PANEL)     # buttons of the optional features that are switched on
+        self.extra_bar.pack(side="left")
 
         tk.Frame(head, bg=BORDER, width=1).pack(side="left", fill="y", padx=12, pady=10)
         tk.Label(head, text=tr("View"), bg=PANEL, fg=MUTED, font=UI).pack(side="left", padx=(0, 6))
@@ -1980,6 +1999,7 @@ class App:
 
         self.root.bind("<Key>", self.on_key)
         self._refresh_view_btns()
+        self._build_extras()
 
     def _hbtn(self, key, glyph, text, size=18):
         """Header button contents: the theme's icon when it has one, else the usual symbol."""
@@ -2311,8 +2331,10 @@ class App:
             self.root.deiconify()
             messagebox.showerror(tr("Capture failed"), str(ex))
             return
-        mode = self._key(self.mode_var, MODE_KEYS)
-        if mode == "Full screen":
+        mode = self._key(self.mode_var, self._mode_keys())
+        if mode == SCROLL_MODE:
+            RegionSelector(self.root, shot, virtual_screen(), self._scroll_region)
+        elif mode == "Full screen":
             self._capture_done(shot, None)
         elif (mode == "Last region" and self.last_region and self.last_region[2] <= shot.width
               and self.last_region[3] <= shot.height):
@@ -2538,6 +2560,10 @@ class App:
         m.add_command(label=tr("Copy this screenshot"), command=lambda: self._copy_img(self.out_image(it), f"#{it['num']}"))
         m.add_command(label=tr("Save this screenshot as…"),
                       command=lambda: self._save_img(self.out_image(it), f"Capture_{it['num']}", [it]))
+        if self.feat["feat_pin"].get():
+            m.add_command(label=tr("Pin to screen"), command=lambda: self.pin_image(self.final(it)))
+        if self.feat["feat_ocr"].get():
+            m.add_command(label=tr("Extract text (OCR)"), command=lambda: self.ocr_image(self.final(it)))
         m.add_separator()
         if it in self.board:
             m.add_command(label=tr("Move to end of board (newest position)"), command=lambda: self._board_to_end(it))
@@ -3738,6 +3764,12 @@ class App:
                 self.redo()
             elif ks == "d":
                 self.dup_obj()
+            elif ks == "p" and self.feat["feat_pin"].get():
+                self.pin_current()
+            elif ks == "t" and self.feat["feat_ocr"].get():
+                self.ocr_current()
+            elif ks == "r" and self.feat["feat_record"].get():
+                self.start_record()
             elif ks in ("0", "kp_0"):
                 self.zoom_fit()
             elif ks in ("1", "kp_1"):
@@ -3953,6 +3985,19 @@ class App:
         m.add_cascade(label=tr("Theme"), menu=tm)
         m.add_checkbutton(label=tr("Add the theme frame to copies and exports"), variable=self.theme_frame,
                           command=self._opts_changed, state="normal" if self.theme.frame else "disabled")
+        fm = tk.Menu(m, tearoff=0, font=UI)
+        for k, label in FEATURES:
+            fm.add_checkbutton(label=tr(label), variable=self.feat[k], command=self._features_changed)
+        if self.feat["feat_record"].get():
+            fm.add_separator()
+            rm = tk.Menu(fm, tearoff=0, font=UI)
+            self._fps_var = tk.IntVar(value=int(self.st.get("rec_fps", 10)))
+            for f in REC_FPS:
+                rm.add_radiobutton(label=tr("{n} frames / s", n=f), value=f, variable=self._fps_var,
+                                   command=lambda: (self.st.update(rec_fps=self._fps_var.get()), save_settings(self.st)))
+            fm.add_cascade(label=tr("Recording frame rate"), menu=rm)
+        m.add_cascade(label=tr("Extra features"), menu=fm)
+        m.add_separator()
         lm = tk.Menu(m, tearoff=0, font=UI)
         self._lang_var = tk.StringVar(value=LANG[0])
         for code, name in LANGS:
@@ -4208,7 +4253,171 @@ class App:
         self._invalidate_all()
 
     def show_shortcuts(self):
-        messagebox.showinfo(tr("Keyboard shortcuts"), shortcuts_text(), parent=self.root)
+        txt = shortcuts_text()
+        extra = [line for k, line in (("feat_pin", tr("Ctrl+P         pin screenshot to the screen")),
+                                       ("feat_ocr", tr("Ctrl+T         extract text (OCR)")),
+                                       ("feat_record", tr("Ctrl+R         record screen to GIF  ·  Esc stop")))
+                 if self.feat[k].get()]
+        if extra:
+            txt += "\n\n" + "\n".join(extra)
+        messagebox.showinfo(tr("Keyboard shortcuts"), txt, parent=self.root)
+
+    # ===================================================================== optional features
+    def _mode_keys(self):
+        return ALL_MODES if self.feat["feat_scroll"].get() else MODE_KEYS
+
+    def _build_extras(self):
+        for w in self.extra_bar.winfo_children():
+            w.destroy()
+        btns = []
+        if self.feat["feat_pin"].get():
+            btns.append(("pin", "📌", tr("Pin"), self.pin_current,
+                         tr("Pin the screenshot above all windows  (Ctrl+P)\n"
+                            "Drag to move · wheel to zoom · Ctrl+wheel opacity · double-click or Esc to close")))
+        if self.feat["feat_ocr"].get():
+            btns.append(("ocr", "🔤", tr("Text"), self.ocr_current,
+                         tr("Extract the text of the screenshot  (Ctrl+T)\nWindows OCR, works offline")))
+        if self.feat["feat_record"].get():
+            btns.append(("record", "⏺", tr("Record"), self.start_record,
+                         tr("Record part of the screen as an animated GIF  (Ctrl+R)\nEsc or Stop to finish")))
+        if btns:
+            tk.Frame(self.extra_bar, bg=BORDER, width=1).pack(side="left", fill="y", padx=(12, 6), pady=10)
+            for key, glyph, text, cmd, tip in btns:
+                FlatButton(self.extra_bar, command=cmd, tip=tip, **self._hbtn(key, glyph, text)).pack(side="left")
+
+    def _features_changed(self):
+        for k, _ in FEATURES:
+            self.st[k] = self.feat[k].get()
+        save_settings(self.st)
+        keys = self._mode_keys()
+        self.mode_cb.configure(values=[tr(k) for k in keys])
+        if self._key(self.mode_var, ALL_MODES) not in keys:
+            self.mode_var.set(tr("Region"))
+        self._build_extras()
+
+    def _current_image(self):
+        """What Pin / OCR act on: the selected screenshot (single view) or the board."""
+        self.commit_edit()
+        if self.view_n() == 1:
+            return self.final(self.sel) if self.sel else None
+        items = self.board_items()
+        if not items:
+            return None
+        return self.final(items[0]) if len(items) == 1 else compose_grid([self.final(i) for i in items])
+
+    # ---- pin to screen
+    def pin_current(self):
+        img = self._current_image()
+        if img is None:
+            self.set_status(tr("Take or select a screenshot first"))
+            return
+        self.pin_image(img)
+
+    def pin_image(self, img):
+        def closed(p):
+            if p is None:                      # "close all"
+                for q in list(self.pins):
+                    q.on_close = None
+                    q.close()
+                self.pins.clear()
+            elif p in self.pins:
+                self.pins.remove(p)
+        p = extras.PinWindow(self.root, img, copy_fn=lambda im: self._copy_img(im, tr("pinned image")),
+                             save_fn=lambda im: self._save_img(im, "Pinned"), on_close=closed)
+        self.pins.append(p)
+        self.set_status(tr("Pinned  ·  drag to move, wheel to zoom, Ctrl+wheel opacity, double-click or Esc to close"))
+
+    # ---- OCR
+    def ocr_current(self):
+        img = self._current_image()
+        if img is None:
+            self.set_status(tr("Take or select a screenshot first"))
+            return
+        self.ocr_image(img)
+
+    def ocr_image(self, img):
+        def lang_changed(lang):
+            self.st["ocr_lang"] = lang
+            save_settings(self.st)
+        extras.OcrDialog(self.root, img, self.st.get("ocr_lang", ""), lang_changed, self.k)
+
+    # ---- scrolling capture
+    def _scroll_region(self, img, box):
+        if img is None:
+            self._capture_done(None, None)
+            return
+        vx, vy, _, _ = virtual_screen()
+        absbox = (box[0] + vx, box[1] + vy, box[2] + vx, box[3] + vy)
+
+        def done(result, err):
+            if err:
+                self.busy = False
+                self.root.deiconify()
+                messagebox.showerror(tr("Capture failed"), err, parent=self.root)
+                return
+            self._capture_done(result, None)
+        extras.ScrollCapture(self.root, absbox, done)
+
+    # ---- screen recording
+    def start_record(self):
+        if self.busy:
+            return
+        self.commit_edit()
+        self.cancel_building()
+        self.busy = True
+        self.root.withdraw()
+        self.root.after(280, self._record_grab)
+
+    def _record_grab(self):
+        try:
+            shot = ImageGrab.grab(all_screens=True)
+        except Exception as ex:
+            self.busy = False
+            self.root.deiconify()
+            messagebox.showerror(tr("Capture failed"), str(ex))
+            return
+        vx, vy, vw, vh = virtual_screen()
+        if self._key(self.mode_var, self._mode_keys()) == "Full screen":
+            self._record_region(shot, (0, 0, vw, vh))
+        else:
+            RegionSelector(self.root, shot, (vx, vy, vw, vh), self._record_region)
+
+    def _record_region(self, img, box):
+        if img is None:
+            self.busy = False
+            self.root.deiconify()
+            self.set_status(tr("Recording cancelled"))
+            return
+        vx, vy, _, _ = virtual_screen()
+        absbox = (box[0] + vx, box[1] + vy, box[2] + vx, box[3] + vy)
+        extras.GifRecorder(self.root, absbox, self._record_done, fps=self.st.get("rec_fps", 10), k=self.k)
+
+    def _record_done(self, rec):
+        self.busy = False
+        self.root.deiconify()
+        self.root.lift()
+        if rec is None:
+            self.set_status(tr("Recording cancelled"))
+            return
+        folder = self.st.get("last_dir") or DEFAULT_SAVE_DIR
+        p = filedialog.asksaveasfilename(
+            parent=self.root, title=tr("Save recording as"), defaultextension=".gif",
+            initialdir=folder if os.path.isdir(folder) else None,
+            initialfile=f"Recording_{datetime.now():%Y%m%d_%H%M%S}.gif", filetypes=[(tr("GIF animation"), "*.gif")])
+        if not p:
+            self.set_status(tr("Recording discarded"))
+            return
+        self.st["last_dir"] = os.path.dirname(p)
+        note = tr("  ·  stopped at the length limit") if rec.limit_hit else ""
+
+        def work():
+            try:
+                extras.save_gif(rec, p, lambda pct: self.q.put(("gif_progress", pct)))
+                self.q.put(("gif_saved", p, None, note))
+            except Exception as ex:
+                self.q.put(("gif_saved", p, str(ex), note))
+        self.set_status(tr("Saving GIF… {p}%", p=0))
+        threading.Thread(target=work, daemon=True).start()
 
     # ===================================================================== loop / exit
     def _poll(self):
@@ -4227,6 +4436,16 @@ class App:
                             self.set_status(tr("Copied {label} to clipboard ({w} × {h})", label=label, w=size[0], h=size[1]))
                     else:
                         self.set_status(tr("⚠ Clipboard busy - try Copy again"))
+                elif m[0] == "gif_progress":
+                    self.set_status(tr("Saving GIF… {p}%", p=m[1]))
+                elif m[0] == "gif_saved":
+                    _, p, err, note = m
+                    if err:
+                        messagebox.showerror(tr("Save failed"), err, parent=self.root)
+                        self.set_status(tr("Save failed"))
+                    else:
+                        self.set_status(tr("GIF saved: {p}", p=p) + note)
+                        self.flash_msg(tr("✓ GIF saved"))
         except queue.Empty:
             pass
         self._poll_job = self.root.after(80, self._poll)
@@ -4272,7 +4491,7 @@ class App:
             self.st["geometry"] = self.root.geometry()
         except Exception:
             pass
-        self.st.update(mode=self._key(self.mode_var, MODE_KEYS), delay=self._key(self.delay_var, DELAY_KEYS),
+        self.st.update(mode=self._key(self.mode_var, self._mode_keys()), delay=self._key(self.delay_var, DELAY_KEYS),
                        view=self.view.get())
         save_settings(self.st)
         try:

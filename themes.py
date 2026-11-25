@@ -62,7 +62,7 @@ DEFAULT_COLORS = {
 # Names of the icon files a theme may provide in icons/<key>.png
 TOOL_ICON_KEYS = ["select", "pen", "highlight", "line", "arrow", "rect", "ellipse", "text", "callout",
                   "marker", "stamp", "mosaic", "dist", "perim", "area", "angle", "calib"]
-HEADER_ICON_KEYS = ["capture", "copy", "save", "delete", "options", "help", "themes"]
+HEADER_ICON_KEYS = ["capture", "copy", "save", "delete", "options", "help", "themes", "pin", "ocr", "record"]
 ICON_KEYS = TOOL_ICON_KEYS + HEADER_ICON_KEYS
 
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,47}$")

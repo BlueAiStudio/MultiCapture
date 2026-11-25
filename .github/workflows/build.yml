@@ -24,7 +24,16 @@ jobs:
         run: python -m pip install -r requirements.txt
 
       - name: Import check
-        run: python -c "import multicapture, i18n; print(multicapture.APP_NAME, multicapture.VERSION)"
+        run: python -c "import multicapture, i18n, extras; print(multicapture.APP_NAME, multicapture.VERSION)"
+
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Windows self-test (screen grab, OCR)
+        run: python tests/selftest_windows.py
+
+      - name: App self-test (every extra feature switched on)
+        run: python tests/selftest_app.py
 
       - name: Check themes
         run: python tools/check_themes.py
@@ -35,6 +44,18 @@ jobs:
       - name: Smoke test (exe starts and stays up for 10 s)
         shell: pwsh
         run: |
+          $p = Start-Process -FilePath dist\MultiCapture.exe -PassThru
+          Start-Sleep -Seconds 10
+          if ($p.HasExited) { throw "exe exited early with code $($p.ExitCode)" }
+          Stop-Process -Id $p.Id -Force
+
+      - name: Smoke test with all extra features switched on
+        shell: pwsh
+        run: |
+          $d = Join-Path $env:APPDATA "MultiCapture"
+          New-Item -ItemType Directory -Force -Path $d | Out-Null
+          '{"guide_shown": true, "ask_on_close": false, "mode": "Scrolling", "feat_pin": true, "feat_ocr": true, "feat_scroll": true, "feat_record": true}' |
+            Set-Content -Encoding utf8 (Join-Path $d "settings.json")
           $p = Start-Process -FilePath dist\MultiCapture.exe -PassThru
           Start-Sleep -Seconds 10
           if ($p.HasExited) { throw "exe exited early with code $($p.ExitCode)" }

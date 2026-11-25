@@ -106,7 +106,7 @@ my-theme/                 文件夹名就是主题 id：只能用小写英文字
 | `text.png` | 文本框 | `calib.png` | 校准比例 |
 | `callout.png` | 标注框 | | |
 
-顶栏按钮：`capture.png`（新建截图）、`copy.png`（复制）、`save.png`（保存）、`delete.png`（删除）、`options.png`（选项）、`themes.png`（主题）、`help.png`（帮助）。
+顶栏按钮：`capture.png`（新建截图）、`copy.png`（复制）、`save.png`（保存）、`delete.png`（删除）、`options.png`（选项）、`themes.png`（主题）、`help.png`（帮助）；扩展功能打开后的按钮：`pin.png`（贴图）、`ocr.png`（识字）、`record.png`（录屏）。
 
 > 如果图标只是一朵花、看不出是什么功能也没关系：鼠标放上去会显示功能名称。
 
@@ -246,7 +246,7 @@ webp, bmp, txt, md; at most 8 MB per file and 4096 × 4096 per image.
 The colour names, icon names and every frame option are listed in the tables of the Chinese section above.
 
 - **Icon keys:** tools `select pen highlight line arrow rect ellipse text callout marker stamp mosaic dist perim
-  area angle calib`; header `capture copy save delete options themes help`.
+  area angle calib`; header `capture copy save delete options themes help`, extra-feature buttons `pin ocr record`.
 - **Decorations:** `header` (right end of the header bar) and `canvas` (behind the screenshot; `anchor` is one of
   `nw n ne w center e sw s se tile`, plus `margin`).
 - **Frame, style:** `margin`, `canvas`, `padding`, `background`, `radius`, `border {color, width}`,
