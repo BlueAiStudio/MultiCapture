@@ -37,6 +37,7 @@ from tkinter import colorchooser, filedialog, messagebox, simpledialog, ttk
 from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageGrab, ImageTk
 
 import extras
+import solid3d
 import themes
 from i18n import LANG, LANGS, detect_lang, guide_text, shortcuts_text, tr
 
@@ -639,6 +640,8 @@ def d_arrow(img, o, s, tf, sc):
 
 
 def d_shape(img, o, s, tf, sc):
+    if o.get("solid"):
+        return solid3d.d_solid(img, o, s, tf, sc)
     x0, y0, x1, y1 = norm_box(o["box"])
     (a, b), (c, e) = tf(x0, y0), tf(x1, y1)
     w = _lw(o, s)
@@ -746,6 +749,8 @@ def d_perim(img, o, s, tf, sc):
 
 
 def d_area(img, o, s, tf, sc):
+    if o.get("solid") and len(o["pts"]) >= 3:
+        return solid3d.d_solid(img, o, s, tf, sc)
     pts = [tf(*p) for p in o["pts"]]
     w = _lw(o, s)
     if len(pts) >= 3:
@@ -799,6 +804,8 @@ DRAWERS = {"pen": d_pen, "highlight": d_highlight, "line": d_line, "arrow": d_ar
 # --------------------------------------------------------------------------- object geometry
 def obj_bbox(o):
     t = o["type"]
+    if o.get("solid") and t in solid3d.SOLID_TYPES:
+        return solid3d.solid_bbox(o)
     if t in ("pen", "highlight", "perim", "area", "angle", "line", "arrow", "dist", "calib"):
         pts = o["pts"] if "pts" in o else o["p"]
         m = o.get("width", 2) * (1.5 if t == "highlight" else 0.5)
@@ -817,6 +824,8 @@ def obj_bbox(o):
 
 def hit_obj(o, x, y, tol):
     t = o["type"]
+    if o.get("solid") and t in solid3d.SOLID_TYPES:
+        return solid3d.solid_hit(o, x, y, tol)
     w = o.get("width", 2)
     if t in ("pen", "perim", "angle"):
         return poly_dist(o["pts"], x, y) <= tol + w / 2
@@ -857,6 +866,14 @@ def move_obj(o, dx, dy):
 
 
 def handles(o):
+    """Resize handles. A pseudo-3D solid gets one more at the end: the depth / angle handle."""
+    base = _base_handles(o)
+    if o.get("solid") and o["type"] in solid3d.SOLID_TYPES:
+        base.append(solid3d.solid_handle(o))
+    return base
+
+
+def _base_handles(o):
     t = o["type"]
     if t in ("rect", "ellipse", "mosaic"):
         x0, y0, x1, y1 = o["box"]
@@ -872,6 +889,9 @@ def handles(o):
 
 def set_handle(o, i, x, y):
     t = o["type"]
+    if o.get("solid") and t in solid3d.SOLID_TYPES and i == len(_base_handles(o)):
+        solid3d.set_solid_handle(o, x, y)
+        return
     if t in ("rect", "ellipse", "mosaic"):
         b = o["box"]
         if i == 0:
@@ -2103,6 +2123,21 @@ class App:
                  highlightthickness=0, troughcolor=BTN_H, bd=0, sliderrelief="flat", font=UI_S,
                  length=int(250 * self.k), command=lambda v: self.on_prop("alpha")).pack(fill="x")
 
+        # pseudo-3D
+        self.sec_solid = self._section(P, "3D")
+        sr3 = tk.Frame(self.sec_solid, bg=PANEL)
+        sr3.pack(fill="x")
+        self.solid_btn = FlatButton(sr3, "⬛ " + tr("Make 3D"), self.toggle_solid, padx=8, pady=2, font=UI_S,
+                                    bg=BTN, hover=BTN_H, tip=tr("Rectangle → box, ellipse → cylinder, polygon → prism"))
+        self.solid_btn.pack(side="left")
+        self.solid_cut = tk.BooleanVar(value=False)
+        self.solid_cut_cb = ttk.Checkbutton(sr3, text=tr("Pocket (cut)"), variable=self.solid_cut,
+                                            command=self.toggle_cut)
+        self.solid_cut_cb.pack(side="left", padx=8)
+        self.solid_hint = tk.Label(self.sec_solid, text=tr("Drag the orange ◆ handle to set depth and angle"),
+                                   bg=PANEL, fg=MUTED, font=UI_S, wraplength=int(265 * self.k), justify="left")
+        self.solid_hint.pack(anchor="w", pady=(4, 0))
+
         # text
         self.sec_text = self._section(P, "TEXT")
         r1 = tk.Frame(self.sec_text, bg=PANEL)
@@ -2817,9 +2852,15 @@ class App:
         a, b = self.to_canvas(x0, y0)
         cc, d = self.to_canvas(x1, y1)
         c.create_rectangle(a - 4, b - 4, cc + 4, d + 4, outline=ACCENT, dash=(4, 3), tags="content")
-        for hx, hy in handles(o):
+        hs = handles(o)
+        solid = bool(o.get("solid")) and o["type"] in solid3d.SOLID_TYPES
+        for i, (hx, hy) in enumerate(hs):
             x, y = self.to_canvas(hx, hy)
-            c.create_rectangle(x - 5, y - 5, x + 5, y + 5, fill="white", outline=ACCENT, width=2, tags="content")
+            if solid and i == len(hs) - 1:        # depth / angle handle: orange diamond
+                c.create_polygon(x, y - 7, x + 7, y, x, y + 7, x - 7, y, fill="#FB8C00", outline="white",
+                                 width=2, tags="content")
+            else:
+                c.create_rectangle(x - 5, y - 5, x + 5, y + 5, fill="white", outline=ACCENT, width=2, tags="content")
         self._draw_grip(a - 4, b - 4)
 
     def _draw_grip(self, x, y):
@@ -2973,18 +3014,28 @@ class App:
             "sec_stroke": kind in ("pen", "highlight", "line", "arrow", "rect", "ellipse", "mosaic", "dist", "calib",
                                    "perim", "area", "angle", "callout") or (kind == "text" and o and o.get("leader")),
             "sec_fill": kind in ("rect", "ellipse", "area"),
+            "sec_solid": bool(o) and kind in solid3d.SOLID_TYPES,
             "sec_text": kind in ("text", "callout"),
             "sec_size": kind in ("marker", "stamp", "dist", "calib", "perim", "area", "angle"),
             "sec_stamp": kind == "stamp",
             "sec_measure": kind in ("dist", "calib", "perim", "area", "angle") or kind == "select",
         }
-        for name in ("sec_sel", "sec_color", "sec_stroke", "sec_fill", "sec_text", "sec_size", "sec_stamp", "sec_measure"):
+        for name in ("sec_sel", "sec_color", "sec_stroke", "sec_fill", "sec_solid", "sec_text", "sec_size", "sec_stamp", "sec_measure"):
             getattr(self, name).pack_forget()
-        for name in ("sec_sel", "sec_color", "sec_stroke", "sec_fill", "sec_text", "sec_size", "sec_stamp", "sec_measure"):
+        for name in ("sec_sel", "sec_color", "sec_stroke", "sec_fill", "sec_solid", "sec_text", "sec_size", "sec_stamp", "sec_measure"):
             if show[name]:
                 getattr(self, name).pack(fill="x")
         self._refresh_swatches()
         self._refresh_fmt_btns()
+        if show["sec_solid"]:
+            on = bool(o.get("solid"))
+            self.solid_btn.configure(text=("▭ " + tr("Make flat")) if on else ("⬛ " + tr("Make 3D")))
+            self.solid_cut.set(bool(on and o["solid"].get("cut")))
+            self.solid_cut_cb.state(["!disabled"] if on else ["disabled"])
+            if on:
+                self.solid_hint.pack(anchor="w", pady=(4, 0))
+            else:
+                self.solid_hint.pack_forget()
         if self.sel:
             k, u = self.scale_of(self.sel)
             src = ("reference line" if any(x["type"] == "calib" for x in self.sel["objs"])
@@ -3266,6 +3317,31 @@ class App:
         self.sel_obj = None
         self.changed()
 
+    def toggle_solid(self):
+        """Rectangle / ellipse / polygon <-> pseudo-3D box / cylinder / prism."""
+        o = self.sel_obj
+        if not o or not self.sel or o not in self.sel["objs"] or o["type"] not in solid3d.SOLID_TYPES:
+            return
+        if o["type"] == "area" and len(o.get("pts", [])) < 3:
+            return
+        self.push_undo()
+        if o.get("solid"):
+            o.pop("solid")
+        else:
+            solid3d.make_solid(o)
+            self._load_props(o)
+        self._update_panel()
+        self.changed()
+
+    def toggle_cut(self):
+        o = self.sel_obj
+        if not o or not o.get("solid") or not self.sel or o not in self.sel["objs"]:
+            return
+        self.push_undo()
+        o["solid"]["cut"] = bool(self.solid_cut.get())
+        self.changed()
+        self._refocus()
+
     def dup_obj(self):
         o = self.sel_obj
         if not o or not self.sel or o not in self.sel["objs"]:
@@ -3481,6 +3557,8 @@ class App:
             self.render()
             if o["type"] == "text":
                 m.add_command(label=tr("Edit text"), command=lambda: self.start_edit(o))
+            if o["type"] in solid3d.SOLID_TYPES:
+                m.add_command(label=tr("Make flat") if o.get("solid") else tr("Make 3D"), command=self.toggle_solid)
             m.add_command(label=tr("Duplicate"), command=self.dup_obj, accelerator="Ctrl+D")
             m.add_command(label=tr("Bring to front"), command=self.obj_front)
             m.add_command(label=tr("Send to back"), command=self.obj_back)

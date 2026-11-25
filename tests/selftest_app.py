@@ -47,6 +47,27 @@ app._capture_done(img, None)
 pump(0.3)
 assert app.sel is not None
 
+# pseudo-3D: rectangle -> box, with a pocket, and back
+box = app._new_obj("rect", box=[40, 40, 160, 120])
+app.sel["objs"].append(box)
+app.select_obj(box)
+app.toggle_solid()
+assert box.get("solid") and len(mc.handles(box)) == 5
+mc.set_handle(box, 4, 200, 10)
+assert box["solid"]["depth"] > 0
+app.solid_cut.set(True)
+app.toggle_cut()
+assert box["solid"]["cut"]
+app.sel["_final"] = None
+exported = app.final(app.sel)
+assert exported.getpixel((100, 100))[:3] != (255, 255, 255), "box not flattened into the export"
+pump(0.2)
+app.toggle_solid()
+assert "solid" not in box
+app.sel["objs"].remove(box)
+app.select_obj(None)
+print("3D shapes OK")
+
 app.pin_current()
 pump(0.3)
 assert len(app.pins) == 1
