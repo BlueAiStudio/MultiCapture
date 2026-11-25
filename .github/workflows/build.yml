@@ -120,14 +120,22 @@ jobs:
           $pkg = Get-AppxPackage -Name $id.IdentityName
           if (-not $pkg) { throw "package did not install" }
           Write-Host "Installed $($pkg.PackageFullName)"
+          # The Store version must keep its data in the package's own LocalState folder:
+          # put settings there, start the app, close it normally and check it saved them back there.
+          $data = Join-Path $env:LOCALAPPDATA "Packages\$($pkg.PackageFamilyName)\LocalState\MultiCapture"
+          New-Item -ItemType Directory -Force -Path $data | Out-Null
+          '{"guide_shown": true, "ask_on_close": false}' | Set-Content -Encoding ascii (Join-Path $data "settings.json")
           Start-Process "explorer.exe" "shell:AppsFolder\$($pkg.PackageFamilyName)!MultiCapture"
           Start-Sleep -Seconds 12
-          $p = Get-Process MultiCapture -ErrorAction SilentlyContinue
+          $p = Get-Process MultiCapture -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*\WindowsApps\*" }
           if (-not $p) { throw "packaged app did not start (or exited early)" }
-          Write-Host "Packaged app is running: $($p.Path)"
-          $data = Join-Path $env:LOCALAPPDATA "Packages\$($pkg.PackageFamilyName)\LocalState"
-          Write-Host "Package data folder:"; Get-ChildItem -Recurse $data -ErrorAction SilentlyContinue | Select-Object -First 20 FullName
-          $p | Stop-Process -Force
+          Write-Host "Packaged app is running: $($p.Path -join ', ')"
+          $p | ForEach-Object { [void]$_.CloseMainWindow() }
+          Start-Sleep -Seconds 5
+          $p | Where-Object { -not $_.HasExited } | Stop-Process -Force
+          $saved = Get-Content -Raw (Join-Path $data "settings.json")
+          Write-Host "settings.json after closing: $saved"
+          if ($saved -notmatch '"view"') { throw "the packaged app did not save its settings in $data" }
           Remove-AppxPackage $pkg.PackageFullName
 
       - uses: actions/upload-artifact@v4
@@ -143,6 +151,8 @@ jobs:
           Write-Host "Screen: $([System.Windows.Forms.Screen]::PrimaryScreen.Bounds)"
           python tools/store_screenshots.py
           if ($LASTEXITCODE -ne 0) { throw "store_screenshots.py failed" }
+          # TEMPORARY: small previews in the log so the pictures can be checked without downloading
+          python -c "import base64,io,glob;from PIL import Image;[print('PREVIEW',f,base64.b64encode((lambda b:(Image.open(f).convert('RGB').resize((640,360)).save(b,'JPEG',quality=70),b)[1])(io.BytesIO()).getvalue()).decode()) for f in sorted(glob.glob('dist/store-screenshots/*/*.png'))]"
 
       - uses: actions/upload-artifact@v4
         with:
