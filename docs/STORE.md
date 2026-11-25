@@ -10,6 +10,7 @@ Microsoft's certificate, so Store users never see the SmartScreen "unknown app" 
 - GitHub Actions runs it on every build, installs a test copy, checks that it starts, and uploads the package
   as the **MultiCapture-msix-for-Store** artifact. It also makes the Store screenshots
   (`tools/store_screenshots.py`, artifact **Store-screenshots**, 1920 × 1080 in en / zh / fr).
+  A copy of the current ones is in [docs/store/screenshots](store/screenshots).
 - The package identity comes from `packaging/msix/store.json`. Copy the three values from
   Partner Center → your app → **Product identity** into it once:
 

@@ -152,21 +152,6 @@ jobs:
           python tools/store_screenshots.py
           if ($LASTEXITCODE -ne 0) { throw "store_screenshots.py failed" }
 
-      - name: TEMPORARY - save the Store screenshots on this PR branch for review
-        if: github.event_name == 'pull_request' && github.head_ref == 'claude/project-thread-ch4w9x'
-        shell: pwsh
-        run: |
-          $dst = "docs/store/screenshots"
-          New-Item -ItemType Directory -Force -Path $dst | Out-Null
-          foreach ($l in "en", "zh", "fr") { Copy-Item -Recurse -Force "dist/store-screenshots/$l" $dst }
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin $env:GITHUB_HEAD_REF
-          git checkout -B $env:GITHUB_HEAD_REF origin/$env:GITHUB_HEAD_REF
-          git add $dst
-          git commit -m "Store screenshots made by CI [skip ci]"
-          git push origin HEAD:$env:GITHUB_HEAD_REF
-
       - uses: actions/upload-artifact@v4
         with:
           name: Store-screenshots
