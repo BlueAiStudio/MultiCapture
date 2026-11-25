@@ -12,7 +12,8 @@ os.environ["APPDATA"] = tempfile.mkdtemp(prefix="mc_selftest_")       # keep the
 os.makedirs(os.path.join(os.environ["APPDATA"], "MultiCapture"))
 with open(os.path.join(os.environ["APPDATA"], "MultiCapture", "settings.json"), "w", encoding="utf-8") as f:
     json.dump({"guide_shown": True, "ask_on_close": False, "autocopy": False, "lang": "zh", "mode": "Scrolling",
-               "feat_pin": True, "feat_ocr": True, "feat_scroll": True, "feat_record": True}, f)
+               "feat_pin": True, "feat_ocr": True, "feat_scroll": True, "feat_record": True,
+               "theme": "night"}, f)
 
 import tkinter as tk  # noqa: E402
 
@@ -35,6 +36,10 @@ pump(0.5)
 assert app._key(app.mode_var, app._mode_keys()) == mc.SCROLL_MODE, app.mode_var.get()
 assert len(app.extra_bar.winfo_children()) == 4, "separator + 3 buttons expected"
 print("extra buttons OK")
+assert app.theme.id == "night" and app.theme.frame, "night theme expected"
+framed = app.framed(Image.new("RGB", (400, 300), "white"))
+assert framed.width > 400 and framed.height > 300, framed.size
+print("theme OK")
 
 img = Image.new("RGB", (640, 200), "white")
 ImageDraw.Draw(img).rectangle((20, 20, 300, 80), fill="black")

@@ -1,0 +1,52 @@
+{
+  "format": 1,
+  "name": {"zh": "鲜花", "en": "Flowers", "fr": "Fleurs"},
+  "author": "HAO",
+  "version": "1.0",
+  "description": {
+    "zh": "每个功能都是一朵花，截图外面套一圈粉色花边。",
+    "en": "Every function is a flower, and screenshots get a pink floral frame.",
+    "fr": "Chaque fonction est une fleur, et les captures ont un cadre fleuri rose."
+  },
+  "colors": {
+    "accent": "#D94F7C",
+    "accent_dark": "#B83A63",
+    "accent_light": "#FCE4EC",
+    "bg": "#FFF5F8",
+    "panel": "#FFFBFC",
+    "border": "#F5D0DC",
+    "text": "#3A2530",
+    "muted": "#8A6B78",
+    "canvas": "#FDEFF3",
+    "button": "#FCE8EF",
+    "button_hover": "#F8D3E0",
+    "hover": "#FDEEF3",
+    "icon": "#6B2D47",
+    "icon_accent": "#D94F7C",
+    "shadow": "#EBC9D5",
+    "notes_bg": "#FFFFFF",
+    "tooltip_bg": "#6B2D47",
+    "tooltip_text": "#FFFFFF"
+  },
+  "decorations": {
+    "header": {"image": "header.png"},
+    "canvas": {"image": "canvas.png", "anchor": "sw", "margin": 0}
+  },
+  "frame": {
+    "image": "frame.png",
+    "slice": [36, 36, 36, 36],
+    "edges": "tile",
+    "margin": 56,
+    "canvas": "#FFF5F8",
+    "background": "#FFFFFF",
+    "padding": 6,
+    "caption": {"height": 40, "text": "{date}  {time}", "color": "#C2185B", "size": 22},
+    "ornaments": [
+      {"image": "deco/rose.png", "anchor": "nw", "size": 150, "offset": [-14, -14]},
+      {"image": "deco/blossom.png", "anchor": "ne", "size": 96, "offset": [10, -10]},
+      {"image": "deco/daisy.png", "anchor": "se", "size": 90, "offset": [10, 10]},
+      {"image": "deco/rose.png", "anchor": "sw", "size": 110, "offset": [-10, 10]},
+      {"image": "deco/blossom.png", "anchor": "n", "size": 54, "offset": [0, -6]}
+    ]
+  }
+}

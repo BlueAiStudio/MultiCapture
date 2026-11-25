@@ -238,6 +238,99 @@ TR = {
     "The new language is applied after a restart.\nRestart now?":
         ("La nouvelle langue s'applique après redémarrage.\nRedémarrer maintenant ?", "新语言将在重启后生效。\n现在重启吗？"),
     "Clear history": ("Effacer l'historique", "清空历史记录"),
+    # ---------------------------------------------------------------- themes
+    "Themes":
+        ("Thèmes", "主题"),
+    "Theme":
+        ("Thème", "主题"),
+    "Theme manager…":
+        ("Gestionnaire de thèmes…", "主题管理…"),
+    "Choose a theme, get new themes online or import your own":
+        ("Choisir un thème, en télécharger de nouveaux ou importer le vôtre", "选择主题、获取在线主题或导入自己的主题"),
+    "A theme changes the colours, the icon of each function, the decorations, and can add a frame to the screenshots you copy or export.":
+        ("Un thème change les couleurs, l'icône de chaque fonction, les décorations, et peut ajouter un cadre aux captures copiées ou exportées.", "主题可以改变界面配色、每个功能的图标和装饰图，还可以给复制或导出的截图加上边框。"),
+    "Add the theme frame to copies and exports":
+        ("Ajouter le cadre du thème aux copies et exports", "复制和导出时加上主题边框"),
+    "The theme “{name}” is applied after a restart.\nRestart now?":
+        ("Le thème « {name} » s'applique après redémarrage.\nRedémarrer maintenant ?", "主题「{name}」将在重启后生效。\n现在重启吗？"),
+    "Theme frame skipped: {e}":
+        ("Cadre du thème ignoré : {e}", "主题边框未能加上：{e}"),
+    "Use this theme":
+        ("Utiliser ce thème", "使用此主题"),
+    "Download and install":
+        ("Télécharger et installer", "下载并安装"),
+    "Update":
+        ("Mettre à jour", "更新"),
+    "Make my own from this…":
+        ("Créer le mien à partir de celui-ci…", "以此为模板自己做…"),
+    "Copies this theme into your themes folder so you can change its pictures and colours":
+        ("Copie ce thème dans votre dossier de thèmes pour modifier ses images et couleurs", "把这个主题复制到你的主题文件夹，方便修改图片和配色"),
+    "Export .zip…":
+        ("Exporter en .zip…", "导出为 .zip…"),
+    "Pack this theme into one file to share it":
+        ("Regroupe ce thème dans un seul fichier à partager", "把主题打包成一个文件，方便分享"),
+    "Remove":
+        ("Supprimer", "删除"),
+    "Get online themes":
+        ("Thèmes en ligne", "获取在线主题"),
+    "Looks for new themes on GitHub. This is the only time the app goes online.":
+        ("Cherche de nouveaux thèmes sur GitHub. C'est le seul moment où l'application se connecte.", "到 GitHub 查找新主题。只有点这个按钮时软件才会联网。"),
+    "Import .zip…":
+        ("Importer un .zip…", "导入 .zip…"),
+    "Install a theme someone sent you":
+        ("Installer un thème qu'on vous a envoyé", "安装别人发给你的主题"),
+    "Open themes folder":
+        ("Ouvrir le dossier des thèmes", "打开主题文件夹"),
+    "How to make a theme":
+        ("Créer un thème", "如何制作主题"),
+    "{n} theme folder(s) could not be read: {names}":
+        ("{n} dossier(s) de thème illisible(s) : {names}", "有 {n} 个主题文件夹无法读取：{names}"),
+    "built in":
+        ("intégré", "内置"),
+    "mine":
+        ("à moi", "我的"),
+    "online":
+        ("en ligne", "在线"),
+    "update":
+        ("mise à jour", "可更新"),
+    "by {a}":
+        ("par {a}", "作者：{a}"),
+    "has a frame":
+        ("avec cadre", "带边框"),
+    "no frame":
+        ("sans cadre", "无边框"),
+    "in use":
+        ("utilisé", "使用中"),
+    "version {v} available online":
+        ("version {v} disponible en ligne", "在线有新版本 {v}"),
+    "Could not reach GitHub: {e}":
+        ("Impossible de joindre GitHub : {e}", "无法连接 GitHub：{e}"),
+    "{n} online theme(s), {k} new or updated":
+        ("{n} thème(s) en ligne, {k} nouveau(x) ou mis à jour", "在线共 {n} 个主题，其中 {k} 个是新的或可更新"),
+    "Downloading… {i}/{n}":
+        ("Téléchargement… {i}/{n}", "正在下载… {i}/{n}"),
+    "Installed “{name}”.":
+        ("« {name} » installé.", "已安装「{name}」。"),
+    "Looking for themes on GitHub…":
+        ("Recherche de thèmes sur GitHub…", "正在 GitHub 上查找主题…"),
+    "Import a theme":
+        ("Importer un thème", "导入主题"),
+    "Theme package":
+        ("Paquet de thème", "主题包"),
+    "Import failed":
+        ("Échec de l'importation", "导入失败"),
+    "Choose another theme first, then remove this one.":
+        ("Choisissez d'abord un autre thème, puis supprimez celui-ci.", "请先换成别的主题，再删除这个。"),
+    "Remove the theme “{name}”?":
+        ("Supprimer le thème « {name} » ?", "删除主题「{name}」吗？"),
+    "New theme":
+        ("Nouveau thème", "新主题"),
+    "Name of your theme:":
+        ("Nom de votre thème :", "主题名称："),
+    "My theme":
+        ("Mon thème", "我的主题"),
+    "Created “{name}”. Change its pictures and theme.json, then choose it.":
+        ("« {name} » créé. Modifiez ses images et theme.json, puis choisissez-le.", "已创建「{name}」。修改里面的图片和 theme.json 后，选中它即可使用。"),
     "Delete all {n} screenshots from the history?\nFiles you saved yourself are not affected.":
         ("Supprimer les {n} captures de l'historique ?\nLes fichiers que vous avez enregistrés ne sont pas touchés.",
          "从历史记录中删除全部 {n} 张截图？\n你自己保存的文件不受影响。"),
@@ -486,6 +579,13 @@ Options → Extra features switches each of these on or off. While a feature is 
 - Scrolling capture: adds "Scrolling" to the capture mode list. Drag a rectangle over the part of the window that scrolls. It then scrolls down by itself and joins the frames into one long image. Click Pause to scroll by hand instead (slowly), and Done or Esc to finish. It stops by itself at the end of the page.
 - Screen recording (GIF): the ⏺ Record button (or Ctrl+R) records a rectangle (or the full screen in Full screen mode) to an animated GIF. Esc or Stop ends it, then you choose where to save. The frame rate (5, 10 or 15 per second) is in Options → Extra features. A recording stops by itself after 60 s.
 > The control bar and the coloured frame around the region are not part of the capture or the recording.
+
+# 12. Themes
+- Click 🎨 Themes to change the colours, the icon of each function and the decorations (restart of the app).
+- A theme can also put a frame around the screenshots you copy and export. Turn it on or off with "Add the theme frame to copies and exports". Auto-saved PNG files never get a frame.
+- "Get online themes" looks for new themes on GitHub. This is the only time the app goes online.
+- "Import .zip…" installs a theme someone sent you. "Make my own from this…" copies a theme into your themes folder so you can change its pictures and colours.
+> How to make a theme: see docs/THEMES.md on the project's GitHub page ("How to make a theme" button).
 """,
     "fr": """# MultiCapture – Guide d'utilisation
 MultiCapture conserve toutes vos captures d'écran. Disposez-en plusieurs sur une même planche (2×2, 3×3 …), annotez-les, mesurez, ajoutez des notes et collez le résultat directement dans un e-mail, Word ou Excel.
@@ -557,6 +657,13 @@ Options → Fonctions supplémentaires active ou désactive chacune d'elles. Une
 - Capture défilante : ajoute « Défilante » aux modes de capture. Tracez un rectangle sur la partie de la fenêtre qui défile. La page défile ensuite toute seule et les images sont assemblées en une longue capture. Cliquez Pause pour faire défiler à la main (lentement), puis Terminé ou Échap. Elle s'arrête seule en bas de la page.
 - Enregistrement d'écran (GIF) : le bouton ⏺ Filmer (ou Ctrl+R) enregistre un rectangle (ou tout l'écran en mode Plein écran) en GIF animé. Échap ou Arrêter pour terminer, puis choisissez où l'enregistrer. La cadence (5, 10 ou 15 images/s) se règle dans Options → Fonctions supplémentaires. L'enregistrement s'arrête seul après 60 s.
 > La barre de commande et le cadre coloré autour de la zone ne figurent pas dans la capture ni dans la vidéo.
+
+# 12. Thèmes
+- Cliquez sur 🎨 Thèmes pour changer les couleurs, l'icône de chaque fonction et les décorations (redémarrage de l'application).
+- Un thème peut aussi encadrer les captures que vous copiez et exportez. Activez ou désactivez « Ajouter le cadre du thème aux copies et exports ». Les PNG enregistrés automatiquement n'ont jamais de cadre.
+- « Thèmes en ligne » cherche de nouveaux thèmes sur GitHub. C'est le seul moment où l'application se connecte.
+- « Importer un .zip… » installe un thème qu'on vous a envoyé. « Créer le mien à partir de celui-ci… » copie un thème dans votre dossier pour modifier ses images et couleurs.
+> Pour créer un thème : voir docs/THEMES.md sur la page GitHub du projet (bouton « Créer un thème »).
 """,
     "zh": """# MultiCapture 使用说明
 MultiCapture 会保留你截的每一张图。可以把多张截图放在同一个拼图里（2×2、3×3 …），进行标注、测量、写备注，然后直接粘贴到邮件、Word 或 Excel 中。
@@ -628,6 +735,13 @@ MultiCapture 会保留你截的每一张图。可以把多张截图放在同一�
 - 长截图 / 滚动截图：截图模式里会多出「长截图」。在需要滚动的窗口区域拖出一个矩形，软件会自动向下滚动，并把每一屏拼接成一张长图。点「暂停」可改为自己慢慢滚动，点「完成」或按 Esc 结束。滚到页面底部时会自动结束。
 - 录屏 (GIF)：点「⏺ 录屏」（或 Ctrl+R），录制一个矩形区域（「全屏」模式下录制整个屏幕）为 GIF 动图。按 Esc 或「停止」结束，然后选择保存位置。帧率（每秒 5、10 或 15 帧）在「选项」→「扩展功能」里设置。录制 60 秒后会自动停止。
 > 控制条和区域外的彩色边框不会被截进图片或录进视频。
+
+# 12. 主题
+- 点顶栏的「🎨 主题」可以更换界面配色、每个功能的图标和装饰图（重启软件后生效）。
+- 主题还可以给复制和导出的截图加上边框，用「复制和导出时加上主题边框」开关。自动保存的 PNG 不加边框。
+- 「获取在线主题」会到 GitHub 查找新主题。只有点这个按钮时软件才会联网。
+- 「导入 .zip…」安装别人发给你的主题；「以此为模板自己做…」会把主题复制到你的主题文件夹，方便你改图片和配色。
+> 如何制作主题：见项目 GitHub 页面上的 docs/THEMES.md（点「如何制作主题」按钮即可打开）。
 """,
 }
 

@@ -35,6 +35,9 @@ jobs:
       - name: App self-test (every extra feature switched on)
         run: python tests/selftest_app.py
 
+      - name: Check themes
+        run: python tools/check_themes.py
+
       - name: Build exe
         run: powershell -ExecutionPolicy Bypass -File build.ps1
 

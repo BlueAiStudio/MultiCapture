@@ -26,6 +26,7 @@ The built-in Snipping Tool keeps one capture at a time. MultiCapture keeps **all
 - **Delete menu**: delete the selected capture, the current board, or everything.
 - **Global hotkey** `Ctrl+Alt+S`. Region, full-screen and last-region modes, with an optional delay.
 - **Languages**: English, Français, 中文. A built-in user guide is under Help.
+- **Themes**: change the colours, the icon of each function and the decorations, and add a frame to copied or exported screenshots. Flowers, Night and Simple card are included; get new ones with **Get online themes** (the only time the app goes online) or [make your own](docs/THEMES.md).
 
 #### Optional extras (off by default)
 
@@ -71,6 +72,9 @@ powershell -ExecutionPolicy Bypass -File install_shortcut.ps1
 | `multicapture.py` | The application |
 | `extras.py` | Optional features: pin, OCR, scrolling capture, GIF recording |
 | `i18n.py` | Translations (fr / zh) and the user guide |
+| `themes.py` | Theme packs: loading, frames, import / export, online themes |
+| `themes/` | Built-in themes, also the catalog for "Get online themes" |
+| `docs/THEMES.md` | How to make a theme |
 | `tests/` | Tests for the optional features (`python -m unittest discover tests`) |
 | `make_icon.py` | Generates `multicapture.ico` / `.png` |
 | `build.ps1` | PyInstaller build script |
@@ -92,6 +96,7 @@ Session data is stored in `%APPDATA%\MultiCapture\`.
 - 可导出为 PNG、JPG、BMP 或 PDF；关闭软件时会提示是否保存；
 - 「删除」菜单可以删除当前截图、整个宫格或全部截图；
 - 全局快捷键 `Ctrl+Alt+S`；界面支持中文、英文、法文，并内置使用说明。
+- **主题**：可以更换界面配色、每个功能的图标和装饰图，还能给复制或导出的截图加上边框。自带「鲜花」「夜晚」「简约卡片」，点「获取在线主题」下载新主题（只有这时才联网），也可以[自己制作](docs/THEMES.md)。
 
 可选的扩展功能（默认关闭，在「选项」→「扩展功能」中单独打开，全部离线、无需下载）：
 
@@ -116,7 +121,8 @@ L'Outil Capture d'écran ne garde qu'une capture à la fois. MultiCapture les ga
 - Mesures façon PDF : distance, périmètre, surface, angle ;
 - Panneau de notes, export PNG / JPG / BMP / PDF, demande d'enregistrement à la fermeture ;
 - Interface en français, anglais et chinois, avec un guide intégré ;
-- Fonctions facultatives, désactivées par défaut (Options → Fonctions supplémentaires) : épingler à l'écran, reconnaissance de texte (OCR de Windows, hors ligne), capture défilante, enregistrement d'écran en GIF.
+- Fonctions facultatives, désactivées par défaut (Options → Fonctions supplémentaires) : épingler à l'écran, reconnaissance de texte (OCR de Windows, hors ligne), capture défilante, enregistrement d’écran en GIF ;
+- Thèmes : couleurs, icône de chaque fonction, décorations et cadre pour les captures copiées ou exportées ; nouveaux thèmes en ligne ou [faits par vous](docs/THEMES.md).
 
 Téléchargement : `MultiCapture.exe` dans les [Releases](https://github.com/xieganglaoliu/MultiCapture/releases/latest), sans installation ni Python.
 

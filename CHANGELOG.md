@@ -10,6 +10,10 @@ Four optional features. Each one is off by default and switched on in **Options 
 - **Screen recording to GIF** (`Ctrl+R`, ⏺ button): records a region (or the full screen in Full screen mode) at 5, 10 or 15 fps, up to 60 s, and saves an animated GIF. The mouse pointer is drawn in the recording.
 - The control bar and the frame around the captured or recorded region are hidden from the capture.
 - Unit tests for the stitching, OCR text clean-up and GIF writing run in CI (`python -m unittest discover tests`).
+- Themes: a theme changes the colours, the icon of each function and the decorations (header and canvas pictures), and can put a frame around copied and exported screenshots (picture frame or card style, with stickers such as flowers, a moon or stars). Open them with the new 🎨 Themes button.
+- Built-in themes: Flowers, Night and Simple card.
+- "Get online themes" downloads new or updated themes from the `themes/` folder of the GitHub repository. The app only goes online when you click it.
+- Themes can be imported and exported as .zip files, and "Make my own from this…" starts a new theme from an existing one. See `docs/THEMES.md`.
 
 ## 1.3.2
 

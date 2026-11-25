@@ -32,11 +32,12 @@ import tkinter as tk
 import tkinter.font as tkfont
 import uuid
 from datetime import datetime
-from tkinter import colorchooser, filedialog, messagebox, ttk
+from tkinter import colorchooser, filedialog, messagebox, simpledialog, ttk
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageGrab, ImageTk
 
 import extras
+import themes
 from i18n import LANG, LANGS, detect_lang, guide_text, shortcuts_text, tr
 
 MODE_KEYS = ["Region", "Full screen", "Last region"]
@@ -87,6 +88,9 @@ SETTINGS_FILE = os.path.join(APPDATA, "settings.json")
 DEFAULT_SAVE_DIR = os.path.join(os.path.expanduser("~"), "Pictures", "MultiCapture")
 RES_DIR = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
 FONTS_DIR = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts")
+THEMES_BUILTIN = os.path.join(RES_DIR, "themes")     # shipped with the program
+THEMES_USER = os.path.join(APPDATA, "themes")         # downloaded, imported or self-made themes
+THEMES_DOC_URL = f"https://github.com/{themes.REPO}/blob/{themes.BRANCH}/docs/THEMES.md"
 
 # --------------------------------------------------------------------------- look
 ACCENT = "#2563EB"
@@ -98,6 +102,38 @@ BORDER = "#E5E7EB"
 TEXT = "#111827"
 MUTED = "#6B7280"
 CANVAS_BG = "#E7EAEE"
+BTN = "#F3F4F6"          # small grey buttons
+BTN_H = "#E5E7EB"
+HOVER = "#EEF2F7"
+ICON_C = "#374151"
+ICON_ACC = "#2563EB"
+SHADOW = "#C8CDD5"
+NOTES_BG = "#FBFBFC"
+TIP_BG = "#111827"
+TIP_FG = "#FFFFFF"
+OK_C = "#15803D"
+FIELD = ["#FFFFFF"]      # drop-down / spin box background
+THEME = [None]           # active themes.Theme (set by apply_theme before the UI is built)
+
+
+def apply_theme(theme):
+    """Sets the UI colours from a theme. Called once at start-up, before any widget exists."""
+    global ACCENT, ACCENT_D, ACCENT_L, BG, PANEL, BORDER, TEXT, MUTED, CANVAS_BG
+    global BTN, BTN_H, HOVER, ICON_C, ICON_ACC, SHADOW, NOTES_BG, TIP_BG, TIP_FG, OK_C
+    c = theme.colors
+    ACCENT, ACCENT_D, ACCENT_L = c["accent"], c["accent_dark"], c["accent_light"]
+    BG, PANEL, BORDER, TEXT, MUTED, CANVAS_BG = c["bg"], c["panel"], c["border"], c["text"], c["muted"], c["canvas"]
+    BTN, BTN_H, HOVER = c["button"], c["button_hover"], c["hover"]
+    ICON_C, ICON_ACC, SHADOW, NOTES_BG = c["icon"], c["icon_accent"], c["shadow"], c["notes_bg"]
+    TIP_BG, TIP_FG, OK_C = c["tooltip_bg"], c["tooltip_text"], c["success"]
+    FIELD[0] = c["field"]
+    THEME[0] = theme
+
+
+def load_themes():
+    return themes.discover([(THEMES_BUILTIN, "builtin"), (THEMES_USER, "user")])
+
+
 UI = ("Segoe UI", 9)
 UI_B = ("Segoe UI Semibold", 9)
 UI_H = ("Segoe UI Semibold", 8)
@@ -147,7 +183,7 @@ DEFAULT_SETTINGS = {
     "stamp": "✔", "decimals": 2, "default_scale": None, "next_num": 1,
     "geometry": "1440x880", "mode": "Region", "delay": "No delay", "lang": None, "guide_shown": False,
     "ask_on_close": True, "last_dir": DEFAULT_SAVE_DIR, "close_fmt": "PNG", "close_what": "unsaved",
-    "open_after_save": False,
+    "open_after_save": False, "theme": "default", "theme_frame": True,
     "feat_pin": False, "feat_ocr": False, "feat_scroll": False, "feat_record": False,
     "ocr_lang": "", "rec_fps": 10,
 }
@@ -212,6 +248,17 @@ def pil_font(family, size, bold=False, italic=False):
             res = (ImageFont.load_default(size), bold, italic)
     _font_cache[key] = res
     return res
+
+
+def _num_opt(v, default, lo, hi):
+    try:
+        return max(lo, min(hi, float(v)))
+    except (TypeError, ValueError):
+        return default
+
+
+def frame_font(size, bold=False, text=""):
+    return pil_font("Microsoft YaHei" if needs_cjk(text) else "Segoe UI", size, bold)[0]
 
 
 def symbol_font(size):
@@ -923,11 +970,30 @@ def unique_path(folder, name, ext):
 
 # --------------------------------------------------------------------------- tool icons
 def make_tool_icon(key, px):
+    return ImageTk.PhotoImage(theme_icon(THEME[0], key, px))
+
+
+def theme_icon(theme, key, px):
+    """RGBA icon for a function: the theme's own picture if it has one, else the built-in drawing."""
+    im = theme.icon(key) if theme else None
+    if im is not None:
+        im = im.copy()
+        im.thumbnail((px, px), Image.LANCZOS)
+        out = Image.new("RGBA", (px, px), (0, 0, 0, 0))
+        out.alpha_composite(im, ((px - im.width) // 2, (px - im.height) // 2))
+        return out
+    if key not in themes.TOOL_ICON_KEYS:
+        return None
+    c = theme.colors if theme else themes.DEFAULT_COLORS
+    return tool_icon_image(key, c["icon"], c["icon_accent"]).resize((px, px), Image.LANCZOS)
+
+
+def tool_icon_image(key, color="#374151", accent="#2563EB"):
     S = 96
     im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
-    c = (55, 65, 81, 255)
-    acc = (37, 99, 235, 255)
+    c = hex_rgb(color) + (255,)
+    acc = hex_rgb(accent) + (255,)
     w = 7
     if key == "select":
         d.polygon([(28, 12), (28, 78), (44, 63), (56, 86), (68, 80), (56, 58), (78, 58)], fill=c)
@@ -978,7 +1044,7 @@ def make_tool_icon(key, px):
             d.ellipse((x - 8, y - 8, x + 8, y + 8), fill=acc)
     elif key == "area":
         pts = [(20, 28), (62, 12), (86, 52), (56, 84), (12, 64)]
-        d.polygon(pts, fill=(37, 99, 235, 80))
+        d.polygon(pts, fill=acc[:3] + (80,))
         d.line(pts + [pts[0]], fill=c, width=6, joint="curve")
     elif key == "angle":
         d.line((14, 80, 86, 80), fill=c, width=6)
@@ -988,7 +1054,7 @@ def make_tool_icon(key, px):
         d.rounded_rectangle((6, 32, 90, 64), radius=6, outline=c, width=6)
         for i, x in enumerate(range(18, 86, 10)):
             d.line((x, 34, x, 46 if i % 2 else 52), fill=c, width=4)
-    return ImageTk.PhotoImage(im.resize((px, px), Image.LANCZOS))
+    return im
 
 
 # --------------------------------------------------------------------------- small widgets
@@ -1016,7 +1082,7 @@ class Tooltip:
         self.tip = tk.Toplevel(self.w)
         self.tip.overrideredirect(True)
         self.tip.attributes("-topmost", True)
-        tk.Label(self.tip, text=self.text, bg="#111827", fg="white", font=UI_S, padx=8, pady=4,
+        tk.Label(self.tip, text=self.text, bg=TIP_BG, fg=TIP_FG, font=UI_S, padx=8, pady=4,
                  justify="left").pack()
         self.tip.geometry(f"+{x}+{y}")
 
@@ -1030,8 +1096,11 @@ class Tooltip:
 class FlatButton(tk.Label):
     """Label based button: never steals keyboard focus (important while editing text)."""
 
-    def __init__(self, parent, text="", command=None, bg=PANEL, fg=TEXT, hover="#EEF2F7",
+    def __init__(self, parent, text="", command=None, bg=None, fg=None, hover=None,
                  font=UI, padx=10, pady=4, tip=None, tip_below=True, **kw):
+        bg = PANEL if bg is None else bg
+        fg = TEXT if fg is None else fg
+        hover = HOVER if hover is None else hover
         super().__init__(parent, text=text, bg=bg, fg=fg, font=font, padx=padx, pady=pady,
                          cursor="hand2", **kw)
         self._bg, self._hover, self.command = bg, hover, command
@@ -1222,9 +1291,9 @@ class CloseDialog(tk.Toplevel):
         bf.pack(fill="x", pady=(16, 0))
         FlatButton(bf, tr("Save and close"), lambda: self._done("save"), bg=ACCENT, fg="white", hover=ACCENT_D,
                    font=UI_B, padx=14, pady=5).pack(side="right")
-        FlatButton(bf, tr("Close without saving"), lambda: self._done("close"), bg="#F3F4F6", hover="#E5E7EB",
+        FlatButton(bf, tr("Close without saving"), lambda: self._done("close"), bg=BTN, hover=BTN_H,
                    padx=12, pady=5).pack(side="right", padx=6)
-        FlatButton(bf, tr("Cancel"), self.destroy, bg="#F3F4F6", hover="#E5E7EB", padx=12, pady=5).pack(side="left")
+        FlatButton(bf, tr("Cancel"), self.destroy, bg=BTN, hover=BTN_H, padx=12, pady=5).pack(side="left")
         self.bind("<Return>", lambda e: self._done("save"))
         self.bind("<Escape>", lambda e: self.destroy())
         self._sync()
@@ -1261,6 +1330,353 @@ class CloseDialog(tk.Toplevel):
         self.destroy()
 
 
+class ThemeDialog(tk.Toplevel):
+    """Theme manager: preview and choose a theme, get themes from GitHub, import / export / create."""
+
+    def __init__(self, app):
+        super().__init__(app.root)
+        self.app = app
+        self.k = app.k
+        self.title(tr("Themes") + " – " + APP_NAME)
+        self.configure(bg=PANEL)
+        self.transient(app.root)
+        self.geometry(f"+{app.root.winfo_rootx() + 70}+{app.root.winfo_rooty() + 50}")
+        self.rows = []          # {"theme": Theme, "local": bool, "entry": online entry or None}
+        self.online = None      # list of online entries once fetched
+        self.q = queue.Queue()
+        self._busy = False
+        self._prev_photo = None
+        self._remote_prev = {}
+        pad = dict(bg=PANEL)
+
+        tk.Label(self, text=tr("Themes"), font=("Segoe UI Semibold", 13), fg=TEXT, **pad).pack(anchor="w", padx=16, pady=(12, 0))
+        tk.Label(self, text=tr("A theme changes the colours, the icon of each function, the decorations, and can add a "
+                               "frame to the screenshots you copy or export."),
+                 font=UI, fg=MUTED, wraplength=int(760 * self.k), justify="left", **pad).pack(anchor="w", padx=16, pady=(2, 8))
+
+        body = tk.Frame(self, **pad)
+        body.pack(fill="both", expand=True, padx=16)
+        lf = tk.Frame(body, bg=BORDER, padx=1, pady=1)
+        lf.pack(side="left", fill="y")
+        self.lb = tk.Listbox(lf, width=34, height=16, font=UI, activestyle="none", relief="flat", bd=0,
+                             highlightthickness=0, bg=FIELD[0], fg=TEXT, selectbackground=ACCENT_L,
+                             selectforeground=TEXT, exportselection=False)
+        sb = ttk.Scrollbar(lf, orient="vertical", command=self.lb.yview)
+        self.lb.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        self.lb.pack(side="left", fill="y")
+        self.lb.bind("<<ListboxSelect>>", lambda e: self._show())
+        self.lb.bind("<Double-Button-1>", lambda e: self._use())
+
+        rf = tk.Frame(body, **pad)
+        rf.pack(side="left", fill="both", expand=True, padx=(14, 0))
+        self.pw, self.ph = int(520 * self.k), int(330 * self.k)
+        self.prev = tk.Label(rf, bg=CANVAS_BG, width=self.pw, height=self.ph, bd=0)
+        self.prev.pack(anchor="w")
+        self.name_lbl = tk.Label(rf, text="", font=UI_BIG, fg=TEXT, anchor="w", **pad)
+        self.name_lbl.pack(fill="x", pady=(8, 0))
+        self.meta_lbl = tk.Label(rf, text="", font=UI_S, fg=MUTED, anchor="w", **pad)
+        self.meta_lbl.pack(fill="x")
+        self.desc_lbl = tk.Label(rf, text="", font=UI, fg=TEXT, anchor="w", justify="left",
+                                 wraplength=self.pw, **pad)
+        self.desc_lbl.pack(fill="x", pady=(2, 6))
+        br = tk.Frame(rf, **pad)
+        br.pack(fill="x")
+        self.use_btn = FlatButton(br, tr("Use this theme"), self._use, bg=ACCENT, fg="white", hover=ACCENT_D,
+                                  padx=12, pady=5)
+        self.use_btn.pack(side="left")
+        self.inst_btn = FlatButton(br, tr("Download and install"), self._install, bg=ACCENT, fg="white",
+                                   hover=ACCENT_D, padx=12, pady=5)
+        self.new_btn = FlatButton(br, tr("Make my own from this…"), self._new_from, bg=BTN, hover=BTN_H, padx=10, pady=5,
+                                  tip=tr("Copies this theme into your themes folder so you can change its pictures and colours"))
+        self.new_btn.pack(side="left", padx=(6, 0))
+        self.exp_btn = FlatButton(br, tr("Export .zip…"), self._export, bg=BTN, hover=BTN_H, padx=10, pady=5,
+                                  tip=tr("Pack this theme into one file to share it"))
+        self.exp_btn.pack(side="left", padx=(6, 0))
+        self.del_btn = FlatButton(br, tr("Remove"), self._remove, bg=BTN, hover=BTN_H, padx=10, pady=5)
+        self.del_btn.pack(side="left", padx=(6, 0))
+
+        tk.Frame(self, bg=BORDER, height=1).pack(fill="x", pady=(12, 0))
+        bot = tk.Frame(self, **pad)
+        bot.pack(fill="x", padx=16, pady=10)
+        self.get_btn = FlatButton(bot, "☁  " + tr("Get online themes"), self._fetch, bg=BTN, hover=BTN_H, padx=10, pady=5,
+                                  tip=tr("Looks for new themes on GitHub. This is the only time the app goes online."))
+        self.get_btn.pack(side="left")
+        FlatButton(bot, tr("Import .zip…"), self._import, bg=BTN, hover=BTN_H, padx=10, pady=5,
+                   tip=tr("Install a theme someone sent you")).pack(side="left", padx=(6, 0))
+        FlatButton(bot, tr("Open themes folder"), self._open_folder, bg=BTN, hover=BTN_H, padx=10, pady=5).pack(side="left", padx=(6, 0))
+        FlatButton(bot, tr("How to make a theme"), lambda: self._open_url(THEMES_DOC_URL), bg=BTN, hover=BTN_H,
+                   padx=10, pady=5).pack(side="left", padx=(6, 0))
+        FlatButton(bot, tr("Close"), self.destroy, bg=ACCENT, fg="white", hover=ACCENT_D, padx=12, pady=5).pack(side="right")
+        bot2 = tk.Frame(self, **pad)
+        bot2.pack(fill="x", padx=16, pady=(0, 12))
+        ttk.Checkbutton(bot2, text=tr("Add the theme frame to copies and exports"), variable=app.theme_frame,
+                        command=app._opts_changed).pack(side="left")
+        self.status = tk.Label(bot2, text="", font=UI_S, fg=MUTED, anchor="e", **pad)
+        self.status.pack(side="right")
+        if app.theme_errors:
+            self._set_status(tr("{n} theme folder(s) could not be read: {names}", n=len(app.theme_errors),
+                                names=", ".join(n for n, _ in app.theme_errors[:3])))
+
+        self._fill(select=app.theme.id)
+        self.bind("<Escape>", lambda e: self.destroy())
+        self.after(100, self._poll)
+
+    # list ---------------------------------------------------------------
+    def _fill(self, select=None):
+        app = self.app
+        self.rows = [{"theme": t, "local": True, "entry": None} for t in app.sorted_themes()]
+        if self.online:
+            by_id = {r["theme"].id: r for r in self.rows}
+            for e in self.online:
+                r = by_id.get(e["id"])
+                if r is None:
+                    self.rows.append({"theme": e["theme"], "local": False, "entry": e})
+                elif themes.version_tuple(e["theme"].version) > themes.version_tuple(r["theme"].version):
+                    r["entry"] = e
+        self.lb.delete(0, "end")
+        active = app.st.get("theme", themes.DEFAULT_ID)
+        sel = 0
+        for i, r in enumerate(self.rows):
+            t = r["theme"]
+            mark = "● " if r["local"] and t.id == active else "   "
+            src = {"default": "", "builtin": tr("built in"), "user": tr("mine")}.get(t.source, "")
+            if not r["local"]:
+                src = "☁ " + tr("online")
+            elif r["entry"]:
+                src += "  ⬆ " + tr("update")
+            self.lb.insert("end", f"{mark}{t.name(LANG[0])}" + (f"   ({src.strip()})" if src.strip() else ""))
+            if t.id == select:
+                sel = i
+        self.lb.selection_set(sel)
+        self.lb.see(sel)
+        self._show()
+
+    def _cur(self):
+        s = self.lb.curselection()
+        return self.rows[s[0]] if s and s[0] < len(self.rows) else None
+
+    def _show(self):
+        r = self._cur()
+        if not r:
+            return
+        t = r["theme"]
+        self.name_lbl.configure(text=t.name(LANG[0]))
+        bits = [b for b in ((tr("by {a}", a=t.author) if t.author else ""), ("v" + t.version if t.version else ""),
+                            (tr("has a frame") if t.frame else tr("no frame")),
+                            (tr("in use") if r["local"] and t.id == self.app.theme.id else "")) if b]
+        if r["entry"] and r["local"]:
+            bits.append(tr("version {v} available online", v=r["entry"]["theme"].version))
+        self.meta_lbl.configure(text="  ·  ".join(bits))
+        self.desc_lbl.configure(text=t.description(LANG[0]))
+        if r["local"]:
+            self.use_btn.pack(side="left", before=self.new_btn)
+            if r["entry"]:
+                self.inst_btn.configure(text=tr("Update"))
+                self.inst_btn.pack(side="left", padx=(6, 0), after=self.use_btn)
+            else:
+                self.inst_btn.pack_forget()
+            self.new_btn.pack(side="left", padx=(6, 0))
+            for b in (self.exp_btn, self.del_btn):
+                b.pack_forget()
+            if t.path:
+                self.exp_btn.pack(side="left", padx=(6, 0))
+            if t.source == "user":
+                self.del_btn.pack(side="left", padx=(6, 0))
+            self._set_preview(self._render_preview(t))
+        else:
+            for b in (self.use_btn, self.new_btn, self.exp_btn, self.del_btn):
+                b.pack_forget()
+            self.inst_btn.configure(text=tr("Download and install"))
+            self.inst_btn.pack(side="left")
+            if t.id in self._remote_prev:
+                self._set_preview(self._remote_prev[t.id] or self._render_preview(t))
+            else:
+                self._set_preview(self._render_preview(t))
+                self._remote_prev[t.id] = None
+                e = r["entry"]
+                self._run(lambda: ("preview", t.id, themes.fetch_preview(e)))
+
+    def _render_preview(self, t):
+        prev = t.preview()
+        if prev is None:
+            try:
+                prev = themes.make_preview(t, theme_icon, (520, 330), frame_font, lang=LANG[0])
+            except Exception:
+                prev = Image.new("RGBA", (520, 330), themes.parse_color(t.colors["canvas"]))
+        return prev
+
+    def _set_preview(self, im):
+        im = im.copy()
+        im.thumbnail((self.pw, self.ph), Image.LANCZOS)
+        box = Image.new("RGBA", (self.pw, self.ph), themes.parse_color(CANVAS_BG))
+        box.alpha_composite(im.convert("RGBA"), ((self.pw - im.width) // 2, (self.ph - im.height) // 2))
+        self._prev_photo = ImageTk.PhotoImage(box)
+        self.prev.configure(image=self._prev_photo, width=self.pw, height=self.ph)
+
+    def _set_status(self, text, error=False):
+        self.status.configure(text=text, fg="#B91C1C" if error else MUTED)
+
+    # background work -------------------------------------------------------
+    def _run(self, fn):
+        def work():
+            try:
+                self.q.put(fn())
+            except Exception as ex:
+                self.q.put(("error", ex))
+        threading.Thread(target=work, daemon=True).start()
+
+    def _poll(self):
+        try:
+            while True:
+                m = self.q.get_nowait()
+                kind = m[0]
+                if kind == "error":
+                    self._busy = False
+                    ex = m[1]
+                    self._set_status(tr("Could not reach GitHub: {e}", e=getattr(ex, "reason", ex)), True)
+                elif kind == "catalog":
+                    self._busy = False
+                    self.online = m[1]
+                    cur = self._cur()
+                    self._fill(select=cur["theme"].id if cur else None)
+                    new = sum(1 for r in self.rows if not r["local"] or r["entry"])
+                    self._set_status(tr("{n} online theme(s), {k} new or updated", n=len(m[1]), k=new))
+                elif kind == "preview":
+                    self._remote_prev[m[1]] = m[2]
+                    cur = self._cur()
+                    if m[2] is not None and cur and cur["theme"].id == m[1] and not cur["local"]:
+                        self._set_preview(m[2])
+                elif kind == "progress":
+                    self._set_status(tr("Downloading… {i}/{n}", i=m[1], n=m[2]))
+                elif kind == "installed":
+                    self._busy = False
+                    t = m[1]
+                    self.app.themes, self.app.theme_errors = load_themes()
+                    self._fill(select=t.id)
+                    self._set_status(tr("Installed “{name}”.", name=t.name(LANG[0])))
+        except queue.Empty:
+            pass
+        try:
+            if self.winfo_exists():
+                self.after(100, self._poll)
+        except tk.TclError:
+            pass
+
+    # actions ----------------------------------------------------------------
+    def _fetch(self):
+        if self._busy:
+            return
+        self._busy = True
+        self._set_status(tr("Looking for themes on GitHub…"))
+        self._run(lambda: ("catalog", themes.fetch_catalog(lang=LANG[0])))
+
+    def _install(self):
+        r = self._cur()
+        if not r or not r["entry"] or self._busy:
+            return
+        self._busy = True
+        e = r["entry"]
+        self._set_status(tr("Downloading… {i}/{n}", i=0, n=len(e["files"])))
+        self._run(lambda: ("installed", themes.install_remote(
+            e, THEMES_USER, progress=lambda i, n: self.q.put(("progress", i, n)))))
+
+    def _use(self):
+        r = self._cur()
+        if not r:
+            return
+        if not r["local"]:
+            self._install()
+            return
+        self.app.set_theme(r["theme"].id)
+        try:
+            if self.winfo_exists():
+                self._fill(select=r["theme"].id)
+        except tk.TclError:   # the app restarted
+            pass
+
+    def _import(self):
+        p = filedialog.askopenfilename(parent=self, title=tr("Import a theme"),
+                                       filetypes=[(tr("Theme package"), "*.zip"), ("*", "*.*")])
+        if not p:
+            return
+        try:
+            t = themes.import_zip(p, THEMES_USER)
+        except Exception as ex:
+            messagebox.showerror(tr("Import failed"), str(ex), parent=self)
+            return
+        self.app.themes, self.app.theme_errors = load_themes()
+        self._fill(select=t.id)
+        self._set_status(tr("Installed “{name}”.", name=t.name(LANG[0])))
+
+    def _export(self):
+        r = self._cur()
+        if not r or not r["theme"].path:
+            return
+        t = r["theme"]
+        p = filedialog.asksaveasfilename(parent=self, defaultextension=".zip", initialfile=f"{t.id}.zip",
+                                         filetypes=[(tr("Theme package"), "*.zip")])
+        if not p:
+            return
+        try:
+            themes.export_zip(t, p)
+        except Exception as ex:
+            messagebox.showerror(tr("Save failed"), str(ex), parent=self)
+            return
+        self._set_status(tr("Saved: {p}", p=p))
+
+    def _remove(self):
+        r = self._cur()
+        if not r or r["theme"].source != "user":
+            return
+        t = r["theme"]
+        if t.id == self.app.theme.id or t.id == self.app.st.get("theme"):
+            messagebox.showinfo(APP_NAME, tr("Choose another theme first, then remove this one."), parent=self)
+            return
+        if not messagebox.askyesno(APP_NAME, tr("Remove the theme “{name}”?", name=t.name(LANG[0])), parent=self):
+            return
+        try:
+            themes.remove_theme(t, THEMES_USER)
+        except Exception as ex:
+            messagebox.showerror(APP_NAME, str(ex), parent=self)
+            return
+        self.app.themes, self.app.theme_errors = load_themes()
+        self._fill(select=self.app.theme.id)
+
+    def _new_from(self):
+        r = self._cur()
+        if not r or not r["local"]:
+            return
+        base = r["theme"]
+        name = simpledialog.askstring(tr("New theme"), tr("Name of your theme:"), parent=self,
+                                      initialvalue=tr("My theme"))
+        if not name or not name.strip():
+            return
+        try:
+            t = themes.create_from(base, name.strip(), THEMES_USER)
+        except Exception as ex:
+            messagebox.showerror(APP_NAME, str(ex), parent=self)
+            return
+        self.app.themes, self.app.theme_errors = load_themes()
+        self._fill(select=t.id)
+        self._set_status(tr("Created “{name}”. Change its pictures and theme.json, then choose it.", name=name.strip()))
+        try:
+            os.startfile(t.path)
+        except Exception:
+            pass
+
+    def _open_folder(self):
+        os.makedirs(THEMES_USER, exist_ok=True)
+        try:
+            os.startfile(THEMES_USER)
+        except Exception as ex:
+            self._set_status(str(ex), True)
+
+    def _open_url(self, url):
+        import webbrowser
+        webbrowser.open(url)
+
+
 # --------------------------------------------------------------------------- settings
 def load_settings():
     s = dict(DEFAULT_SETTINGS)
@@ -1291,6 +1707,11 @@ class App:
         LANG[0] = self.st["lang"]
         self.restart = False
         _DEC[0] = int(self.st.get("decimals", 2))
+        self.themes, self.theme_errors = load_themes()
+        self.theme = self.themes.get(self.st.get("theme")) or self.themes[themes.DEFAULT_ID]
+        apply_theme(self.theme)
+        self.theme_frame = tk.BooleanVar(value=self.st.get("theme_frame", True))
+        self._deco_key = None
         root.title(f"{APP_NAME}")
         root.geometry(self.st.get("geometry", "1440x880"))
         root.minsize(1000, 620)
@@ -1385,9 +1806,31 @@ class App:
         style.configure("TCombobox", padding=3, arrowsize=12)
         style.configure("TCheckbutton", background=PANEL)
         style.configure("TSpinbox", padding=2, arrowsize=10)
-        style.configure("Vertical.TScrollbar", background="#D1D5DB", troughcolor=PANEL, bordercolor=PANEL,
+        if self.theme.id != themes.DEFAULT_ID:
+            # widgets that do not set their own colours follow the theme too (dark themes need this)
+            style.configure(".", foreground=TEXT, fieldbackground=FIELD[0], bordercolor=BORDER,
+                            lightcolor=PANEL, darkcolor=BORDER, troughcolor=BTN, arrowcolor=TEXT,
+                            selectbackground=ACCENT_L, selectforeground=TEXT, insertcolor=TEXT)
+            style.configure("TCheckbutton", foreground=TEXT, indicatorbackground=FIELD[0], indicatorforeground=ACCENT)
+            style.map("TCheckbutton", background=[("active", HOVER)], foreground=[("disabled", MUTED)])
+            style.map("TCombobox", fieldbackground=[("readonly", FIELD[0])], foreground=[("readonly", TEXT)],
+                      selectbackground=[("readonly", FIELD[0])], selectforeground=[("readonly", TEXT)])
+            style.map("TSpinbox", fieldbackground=[("!disabled", FIELD[0])])
+            style.configure("Vertical.TScrollbar", lightcolor=BTN_H, darkcolor=BTN_H)
+            r = self.root
+            for opt, val in (("*foreground", TEXT), ("*Label.foreground", TEXT), ("*Entry.background", FIELD[0]),
+                             ("*Entry.insertBackground", TEXT), ("*Listbox.background", FIELD[0]),
+                             ("*Listbox.foreground", TEXT), ("*Listbox.selectBackground", ACCENT_L),
+                             ("*Listbox.selectForeground", TEXT), ("*Text.background", NOTES_BG),
+                             ("*Text.foreground", TEXT), ("*Menu.background", PANEL), ("*Menu.foreground", TEXT),
+                             ("*Menu.activeBackground", ACCENT_L), ("*Menu.activeForeground", TEXT),
+                             ("*Scale.foreground", TEXT), ("*Radiobutton.foreground", TEXT),
+                             ("*Checkbutton.foreground", TEXT), ("*Checkbutton.selectColor", FIELD[0])):
+                r.option_add(opt, val)
+        style.configure("Vertical.TScrollbar", background=BTN_H, troughcolor=PANEL, bordercolor=PANEL,
                         arrowcolor=MUTED, gripcount=0)
-        style.map("TCombobox", fieldbackground=[("readonly", "white")])
+        if self.theme.id == themes.DEFAULT_ID:
+            style.map("TCombobox", fieldbackground=[("readonly", "white")])
         self.root.option_add("*TCombobox*Listbox.font", UI)
 
         # ---------------------------------------------------------- header
@@ -1402,8 +1845,9 @@ class App:
             pass
         tk.Label(head, text="MultiCapture", font=("Segoe UI Semibold", 12), bg=PANEL, fg=TEXT).pack(side="left", padx=(0, 16))
 
-        FlatButton(head, "＋  " + tr("New capture"), self.new_capture, bg=ACCENT, fg="white", hover=ACCENT_D,
-                   font=UI_BIG, padx=14, pady=6,
+        self._hicons = {}
+        FlatButton(head, command=self.new_capture, bg=ACCENT, fg="white", hover=ACCENT_D,
+                   font=UI_BIG, padx=14, pady=6, **self._hbtn("capture", "＋", tr("New capture"), 20),
                    tip=tr("New capture  (Ctrl+N)\nGlobal hotkey from anywhere: Ctrl+Alt+S")).pack(side="left", pady=8)
         cb = ttk.Combobox(head, textvariable=self.mode_var, state="readonly", width=12,
                           values=[tr(k) for k in self._mode_keys()])
@@ -1433,15 +1877,31 @@ class App:
             self.view_btns[name] = b
 
         tk.Frame(head, bg=BORDER, width=1).pack(side="left", fill="y", padx=12, pady=10)
-        FlatButton(head, "⧉  " + tr("Copy"), self.copy_view,
+        FlatButton(head, command=self.copy_view, **self._hbtn("copy", "⧉", tr("Copy")),
                    tip=tr("Copy the current view to the clipboard  (Ctrl+C)")).pack(side="left")
-        self.save_btn = FlatButton(head, "💾  " + tr("Save") + " ▾", self._save_menu, tip=tr("Save / export"))
+        self.save_btn = FlatButton(head, command=self._save_menu, **self._hbtn("save", "💾", tr("Save") + " ▾"),
+                                   tip=tr("Save / export"))
         self.save_btn.pack(side="left")
-        self.del_btn = FlatButton(head, "🗑  " + tr("Delete") + " ▾", self._delete_menu, tip=tr("Delete screenshots"))
+        self.del_btn = FlatButton(head, command=self._delete_menu, **self._hbtn("delete", "🗑", tr("Delete") + " ▾"),
+                                  tip=tr("Delete screenshots"))
         self.del_btn.pack(side="left")
-        self.more_btn = FlatButton(head, "⚙  " + tr("Options") + " ▾", self._options_menu, tip=tr("Options"))
+        self.more_btn = FlatButton(head, command=self._options_menu, **self._hbtn("options", "⚙", tr("Options") + " ▾"),
+                                   tip=tr("Options"))
         self.more_btn.pack(side="left")
-        FlatButton(head, "?  " + tr("Help"), self.show_guide, tip=tr("User guide  (F1)")).pack(side="left")
+        FlatButton(head, command=self.show_themes, **self._hbtn("themes", "🎨", tr("Themes")),
+                   tip=tr("Choose a theme, get new themes online or import your own")).pack(side="left")
+        FlatButton(head, command=self.show_guide, **self._hbtn("help", "?", tr("Help")),
+                   tip=tr("User guide  (F1)")).pack(side="left")
+        deco = self.theme.decoration("header")
+        if deco:   # theme picture on the right end of the header (e.g. moon and stars)
+            im = deco[0]
+            hh = int(_num_opt(deco[1].get("height"), 44, 8, 120) * self.k)
+            im = im.resize((max(1, int(im.width * hh / im.height)), hh), Image.LANCZOS)
+            bgc = themes.parse_color(PANEL)
+            flat = Image.new("RGBA", im.size, bgc)
+            flat.alpha_composite(im)
+            self._head_deco = ImageTk.PhotoImage(flat)
+            tk.Label(head, image=self._head_deco, bg=PANEL, bd=0).pack(side="right", padx=(0, 4))
 
 
         # ---------------------------------------------------------- body
@@ -1489,8 +1949,9 @@ class App:
             key, tip, _ = t
             self._icons[key] = make_tool_icon(key, ipx)
             b = tk.Radiobutton(strip, image=self._icons[key], variable=self.tool, value=key, indicatoron=False,
-                               bg=PANEL, activebackground="#EEF2F7", selectcolor=ACCENT_L, relief="flat",
+                               bg=PANEL, activebackground=HOVER, selectcolor=ACCENT_L, relief="flat",
                                offrelief="flat", bd=0, width=int(36 * self.k), height=int(32 * self.k),
+                               highlightthickness=0,
                                cursor="hand2", command=self._tool_changed, takefocus=0)
             b.pack(padx=5, pady=1)
             Tooltip(b, tr(tip))
@@ -1529,7 +1990,7 @@ class App:
         self.zoom_lbl.pack(side="left")
         FlatButton(zf, "+", lambda: self.zoom_at(1.25), padx=6, pady=1, font=UI_S,
                    tip=tr("Zoom in  (Ctrl++ / Ctrl+wheel)")).pack(side="left")
-        self.flash = tk.Label(bar, text="", bg=PANEL, fg="#15803D", font=UI_B)
+        self.flash = tk.Label(bar, text="", bg=PANEL, fg=OK_C, font=UI_B)
         self.flash.pack(side="right", padx=10)
         self.coord_lbl = tk.Label(bar, text="", bg=PANEL, fg=MUTED, font=UI_S)
         self.coord_lbl.pack(side="right", padx=10)
@@ -1539,6 +2000,16 @@ class App:
         self.root.bind("<Key>", self.on_key)
         self._refresh_view_btns()
         self._build_extras()
+
+    def _hbtn(self, key, glyph, text, size=18):
+        """Header button contents: the theme's icon when it has one, else the usual symbol."""
+        im = self.theme.icon(key)
+        if im is None:
+            return {"text": f"{glyph}  {text}"}
+        px = int(size * self.k)
+        ph = ImageTk.PhotoImage(theme_icon(self.theme, key, px))
+        self._hicons[key] = ph
+        return {"text": "  " + text, "image": ph, "compound": "left"}
 
     def _section(self, parent, title):
         f = tk.Frame(parent, bg=PANEL)
@@ -1563,7 +2034,7 @@ class App:
                                              ("✕ " + tr("Delete"), self.delete_obj, tr("Delete key")),
                                              ("▲ " + tr("Front"), self.obj_front, tr("Bring to front")),
                                              ("▼ " + tr("Back"), self.obj_back, tr("Send to back")))):
-            FlatButton(row, txt, cmd, padx=6, pady=2, font=UI_S, bg="#F3F4F6", hover="#E5E7EB", tip=tip,
+            FlatButton(row, txt, cmd, padx=6, pady=2, font=UI_S, bg=BTN, hover=BTN_H, tip=tip,
                        anchor="w").grid(row=i // 2, column=i % 2, padx=(0, 3), pady=(0, 3), sticky="ew")
         row.columnconfigure(0, weight=1)
         row.columnconfigure(1, weight=1)
@@ -1586,14 +2057,14 @@ class App:
         cr.pack(fill="x", pady=(4, 0))
         self.cur_sw = tk.Label(cr, bg=self.color, width=3, relief="solid", bd=1)
         self.cur_sw.pack(side="left")
-        FlatButton(cr, tr("Custom…"), self.pick_color, padx=6, pady=1, font=UI_S, bg="#F3F4F6", hover="#E5E7EB").pack(side="left", padx=6)
+        FlatButton(cr, tr("Custom…"), self.pick_color, padx=6, pady=1, font=UI_S, bg=BTN, hover=BTN_H).pack(side="left", padx=6)
 
         # stroke
         self.sec_stroke = self._section(P, "LINE WIDTH")
         sr = tk.Frame(self.sec_stroke, bg=PANEL)
         sr.pack(fill="x")
         tk.Scale(sr, from_=1, to=30, orient="horizontal", variable=self.width_var, showvalue=True, bg=PANEL,
-                 highlightthickness=0, troughcolor="#E5E7EB", bd=0, sliderrelief="flat", font=UI_S,
+                 highlightthickness=0, troughcolor=BTN_H, bd=0, sliderrelief="flat", font=UI_S,
                  activebackground=ACCENT, length=int(250 * self.k),
                  command=lambda v: self.on_prop("width")).pack(side="left", fill="x", expand=True)
 
@@ -1607,7 +2078,7 @@ class App:
         self.fill_sw.bind("<Button-1>", lambda e: self.pick_fill())
         tk.Label(fr, text=tr("Opacity"), bg=PANEL, fg=MUTED, font=UI_S).pack(side="left", padx=(6, 0))
         tk.Scale(self.sec_fill, from_=5, to=100, orient="horizontal", variable=self.fill_alpha, bg=PANEL,
-                 highlightthickness=0, troughcolor="#E5E7EB", bd=0, sliderrelief="flat", font=UI_S,
+                 highlightthickness=0, troughcolor=BTN_H, bd=0, sliderrelief="flat", font=UI_S,
                  length=int(250 * self.k), command=lambda v: self.on_prop("alpha")).pack(fill="x")
 
         # text
@@ -1627,13 +2098,13 @@ class App:
         for key, txt, fnt in (("bold", "B", ("Segoe UI", 10, "bold")), ("italic", "I", ("Georgia", 10, "italic")),
                               ("underline", "U", ("Segoe UI", 10, "underline"))):
             b = FlatButton(r2, txt, lambda k_=key: self.toggle_fmt(k_), font=fnt, padx=9, pady=1,
-                           bg="#F3F4F6", hover="#E5E7EB", tip=tr({"bold": "Bold", "italic": "Italic", "underline": "Underline"}[key]))
+                           bg=BTN, hover=BTN_H, tip=tr({"bold": "Bold", "italic": "Italic", "underline": "Underline"}[key]))
             b.pack(side="left", padx=(0, 2))
             self.fmt_btns[key] = b
         tk.Frame(r2, bg=PANEL, width=10).pack(side="left")
         for al, txt in (("left", "≡ L"), ("center", "≡ C"), ("right", "≡ R")):
-            b = FlatButton(r2, txt, lambda a=al: self.set_align(a), font=UI_S, padx=6, pady=2, bg="#F3F4F6",
-                           hover="#E5E7EB", tip=tr(f"Align {al}"))
+            b = FlatButton(r2, txt, lambda a=al: self.set_align(a), font=UI_S, padx=6, pady=2, bg=BTN,
+                           hover=BTN_H, tip=tr(f"Align {al}"))
             b.pack(side="left", padx=(0, 2))
             self.fmt_btns["al_" + al] = b
         r3 = tk.Frame(self.sec_text, bg=PANEL)
@@ -1660,7 +2131,7 @@ class App:
         self.stamp_btns = {}
         for i, sym in enumerate(STAMPS):
             b = FlatButton(st, sym, lambda s_=sym: self.set_stamp(s_), font=("Segoe UI Symbol", 12), padx=6, pady=0,
-                           bg="#F3F4F6", hover="#E5E7EB")
+                           bg=BTN, hover=BTN_H)
             b.grid(row=i // 5, column=i % 5, padx=1, pady=1)
             self.stamp_btns[sym] = b
 
@@ -1671,11 +2142,11 @@ class App:
         self.scale_lbl.pack(fill="x")
         mr = tk.Frame(self.sec_measure, bg=PANEL)
         mr.pack(fill="x", pady=(4, 0))
-        FlatButton(mr, tr("Set scale…"), self.set_scale_manual, padx=5, pady=2, font=UI_S, bg="#F3F4F6", hover="#E5E7EB",
+        FlatButton(mr, tr("Set scale…"), self.set_scale_manual, padx=5, pady=2, font=UI_S, bg=BTN, hover=BTN_H,
                    tip=tr("Enter how much one pixel represents")).pack(side="left")
-        FlatButton(mr, tr("Calibrate"), lambda: self.set_tool("calib"), padx=5, pady=2, font=UI_S, bg="#F3F4F6",
-                   hover="#E5E7EB", tip=tr("Draw a line over a known length")).pack(side="left", padx=3)
-        FlatButton(mr, tr("Reset"), self.reset_scale, padx=5, pady=2, font=UI_S, bg="#F3F4F6", hover="#E5E7EB").pack(side="left")
+        FlatButton(mr, tr("Calibrate"), lambda: self.set_tool("calib"), padx=5, pady=2, font=UI_S, bg=BTN,
+                   hover=BTN_H, tip=tr("Draw a line over a known length")).pack(side="left", padx=3)
+        FlatButton(mr, tr("Reset"), self.reset_scale, padx=5, pady=2, font=UI_S, bg=BTN, hover=BTN_H).pack(side="left")
         tk.Label(mr, text=tr("Dec."), bg=PANEL, fg=MUTED, font=UI_S).pack(side="left", padx=(8, 2))
         ds = ttk.Spinbox(mr, from_=0, to=6, textvariable=self.decimals, width=3, command=self._dec_changed)
         ds.pack(side="left")
@@ -1690,7 +2161,7 @@ class App:
         nf = tk.Frame(wrap, bg=BORDER, padx=1, pady=1)
         nf.pack(fill="both", expand=True)
         self.notes = tk.Text(nf, wrap="word", font=("Segoe UI", 10), relief="flat", bd=0, padx=8, pady=6,
-                             undo=True, bg="#FBFBFC", height=6, insertbackground=TEXT,
+                             undo=True, bg=NOTES_BG, height=6, insertbackground=TEXT,
                              highlightthickness=0, selectbackground=ACCENT_L, selectforeground=TEXT)
         self.notes.pack(fill="both", expand=True)
         self.notes.bind("<<Modified>>", self._notes_modified)
@@ -1815,13 +2286,31 @@ class App:
     def view_image(self):
         n = self.view_n()
         if n == 1:
-            return self.with_notes(self.sel) if self.sel else None
+            return self.out_image(self.sel) if self.sel else None
         items = self.board_items()
         if not items:
             return None
         if len(items) == 1:
-            return self.with_notes(items[0])
-        return compose_grid([self.with_notes(i) for i in items])
+            return self.out_image(items[0])
+        return self.framed(compose_grid([self.with_notes(i) for i in items]), None, len(items))
+
+    def out_image(self, it, title=False):
+        """Screenshot as it is copied / exported: annotations, notes and the theme frame."""
+        return self.framed(self.with_notes(it, title), it)
+
+    def framed(self, img, it=None, count=1):
+        th = self.theme
+        if not (th.frame and self.theme_frame.get()):
+            return img
+        t = it["time"] if it else datetime.now()
+        ctx = {"title": f"{APP_NAME}  ·  #{it['num']}" if it else APP_NAME, "app": APP_NAME,
+               "date": f"{t:%Y-%m-%d}", "time": f"{t:%H:%M}", "num": it["num"] if it else "", "count": count,
+               "theme": th.name(LANG[0])}
+        try:
+            return themes.apply_frame(img, th, ctx, frame_font)
+        except Exception as ex:   # a broken theme must never stop a copy or a save
+            self.set_status(tr("Theme frame skipped: {e}", e=ex))
+            return img
 
     # ===================================================================== capture
     def new_capture(self):
@@ -2068,9 +2557,9 @@ class App:
     def _card_menu(self, e, it):
         m = tk.Menu(self.root, tearoff=0, font=UI)
         m.add_command(label=tr("Open"), command=lambda: (self.set_view("Single"), self.select_item(it)))
-        m.add_command(label=tr("Copy this screenshot"), command=lambda: self._copy_img(self.with_notes(it), f"#{it['num']}"))
+        m.add_command(label=tr("Copy this screenshot"), command=lambda: self._copy_img(self.out_image(it), f"#{it['num']}"))
         m.add_command(label=tr("Save this screenshot as…"),
-                      command=lambda: self._save_img(self.with_notes(it), f"Capture_{it['num']}", [it]))
+                      command=lambda: self._save_img(self.out_image(it), f"Capture_{it['num']}", [it]))
         if self.feat["feat_pin"].get():
             m.add_command(label=tr("Pin to screen"), command=lambda: self.pin_image(self.final(it)))
         if self.feat["feat_ocr"].get():
@@ -2153,7 +2642,7 @@ class App:
         self.notes.delete("1.0", "end")
         if self.sel:
             self.notes.insert("1.0", self.sel["notes"])
-            self.notes.configure(state="normal", bg="#FBFBFC")
+            self.notes.configure(state="normal", bg=NOTES_BG)
             self.notes_lbl.configure(text=tr("NOTES  ·  #{n}", n=self.sel["num"]))
         else:
             self.notes_lbl.configure(text=tr("NOTES"))
@@ -2197,7 +2686,7 @@ class App:
             if name == self.view.get():
                 b.set_colors(ACCENT, "white", ACCENT_D)
             else:
-                b.set_colors(PANEL, TEXT, "#EEF2F7")
+                b.set_colors(PANEL, TEXT, HOVER)
 
     def request_render(self):
         if not self._render_pending:
@@ -2214,6 +2703,7 @@ class App:
         self._cells = []
         self._grip = None
         cw, ch = max(c.winfo_width(), 50), max(c.winfo_height(), 50)
+        self._draw_deco(cw, ch)
         if not self.items:
             self._draw_empty(cw, ch)
             self.zoom_lbl.configure(text="")
@@ -2223,6 +2713,22 @@ class App:
             self._draw_board(cw, ch)
         else:
             self._draw_single(cw, ch)
+
+    def _draw_deco(self, cw, ch):
+        """Theme picture behind the screenshots (e.g. a moon in a corner, or a tiled pattern)."""
+        if self._deco_key == (cw, ch):
+            return
+        self._deco_key = (cw, ch)
+        self.canvas.delete("deco")
+        deco = self.theme.decoration("canvas")
+        if not deco:
+            return
+        try:
+            self._deco_photo = ImageTk.PhotoImage(themes.decoration_image(deco, (cw, ch)))
+        except Exception:
+            return
+        self.canvas.create_image(0, 0, anchor="nw", image=self._deco_photo, tags="deco")
+        self.canvas.tag_lower("deco")
 
     def _draw_empty(self, cw, ch):
         c = self.canvas
@@ -2267,7 +2773,7 @@ class App:
         draw_objects(img, objs, s, ix0, iy0, self.scale_of(it), skip_id=self.editing["id"] if self.editing else None)
         self._photo = ImageTk.PhotoImage(img)
         px, py = (ix0 - self.vx) * s, (iy0 - self.vy) * s
-        c.create_rectangle(px + 3, py + 3, px + img.width + 3, py + img.height + 3, fill="#C8CDD5", outline="",
+        c.create_rectangle(px + 3, py + 3, px + img.width + 3, py + img.height + 3, fill=SHADOW, outline="",
                            tags="content")
         c.create_image(px, py, anchor="nw", image=self._photo, tags="content")
         self._draw_selection()
@@ -2325,7 +2831,7 @@ class App:
             x0, y0 = gap + col * (cell_w + gap), gap + r * (cell_h + gap)
             sel = it is self.sel
             outline = "#F59E0B" if hover is it else (ACCENT if sel else BORDER)
-            c.create_rectangle(x0 + 2, y0 + 2, x0 + cell_w + 2, y0 + cell_h + 2, fill="#CDD2D9", outline="", tags="content")
+            c.create_rectangle(x0 + 2, y0 + 2, x0 + cell_w + 2, y0 + cell_h + 2, fill=SHADOW, outline="", tags="content")
             c.create_rectangle(x0, y0, x0 + cell_w, y0 + cell_h, fill=PANEL, outline=outline,
                                width=3 if (sel or hover is it) else 1, tags="content")
             img = self.with_notes(it)
@@ -2474,14 +2980,14 @@ class App:
     def _refresh_fmt_btns(self):
         for k in ("bold", "italic", "underline"):
             on = getattr(self, k).get()
-            self.fmt_btns[k].set_colors(ACCENT if on else "#F3F4F6", "white" if on else TEXT, ACCENT_D if on else "#E5E7EB")
+            self.fmt_btns[k].set_colors(ACCENT if on else BTN, "white" if on else TEXT, ACCENT_D if on else BTN_H)
         for al in ("left", "center", "right"):
             on = self.align.get() == al
-            self.fmt_btns["al_" + al].set_colors(ACCENT if on else "#F3F4F6", "white" if on else TEXT,
-                                                 ACCENT_D if on else "#E5E7EB")
+            self.fmt_btns["al_" + al].set_colors(ACCENT if on else BTN, "white" if on else TEXT,
+                                                 ACCENT_D if on else BTN_H)
         for sym, b in self.stamp_btns.items():
             on = self.stamp.get() == sym
-            b.set_colors(ACCENT if on else "#F3F4F6", "white" if on else TEXT, ACCENT_D if on else "#E5E7EB")
+            b.set_colors(ACCENT if on else BTN, "white" if on else TEXT, ACCENT_D if on else BTN_H)
 
     def set_color(self, c):
         self.color = c
@@ -3371,7 +3877,7 @@ class App:
 
     def save_selected(self):
         if self.sel:
-            self._save_img(self.with_notes(self.sel), f"Capture_{self.sel['num']}", [self.sel])
+            self._save_img(self.out_image(self.sel), f"Capture_{self.sel['num']}", [self.sel])
 
     def save_all_png(self):
         if not self.items:
@@ -3383,7 +3889,7 @@ class App:
         done = []
         try:
             for it in reversed(self.items):
-                save_image(self.with_notes(it), os.path.join(d, f"Capture_{it['num']:03d}_{it['time']:%Y%m%d_%H%M%S}.png"))
+                save_image(self.out_image(it), os.path.join(d, f"Capture_{it['num']:03d}_{it['time']:%Y%m%d_%H%M%S}.png"))
                 done.append(it)
         except Exception as ex:
             self._mark_saved(done)
@@ -3408,7 +3914,7 @@ class App:
                 out.append(p)
         elif what == "pdf":
             items = list(reversed(self.items))
-            pages = [self.with_notes(it, title=True).convert("RGB") for it in items]
+            pages = [self.out_image(it, title=True).convert("RGB") for it in items]
             if pages:
                 p = unique_path(folder, prefix, ".pdf")
                 pages[0].save(p, "PDF", resolution=96, save_all=True, append_images=pages[1:])
@@ -3417,7 +3923,7 @@ class App:
             items = [it for it in reversed(self.items) if what == "each" or it.get("dirty")]
             for it in items:
                 p = unique_path(folder, f"{prefix}_{it['num']:03d}", ext)
-                save_image(self.with_notes(it), p)
+                save_image(self.out_image(it), p)
                 out.append(p)
         self._mark_saved(items)
         return out
@@ -3432,7 +3938,7 @@ class App:
         if not p:
             return
         try:
-            pages = [self.with_notes(it, title=True).convert("RGB") for it in items]
+            pages = [self.out_image(it, title=True).convert("RGB") for it in items]
             pages[0].save(p, "PDF", resolution=96, save_all=True, append_images=pages[1:])
         except Exception as ex:
             messagebox.showerror(tr("Save failed"), str(ex), parent=self.root)
@@ -3469,6 +3975,16 @@ class App:
         m.add_command(label=tr("Remove all annotations on this screenshot"), command=self.clear_marks)
         m.add_command(label=tr("Reset default scale"), command=self._reset_default_scale)
         m.add_separator()
+        tm = tk.Menu(m, tearoff=0, font=UI)
+        self._theme_var = tk.StringVar(value=self.st.get("theme") if self.st.get("theme") in self.themes else themes.DEFAULT_ID)
+        for th in self.sorted_themes():
+            tm.add_radiobutton(label=th.name(LANG[0]), value=th.id, variable=self._theme_var,
+                               command=lambda t=th.id: self.set_theme(t))
+        tm.add_separator()
+        tm.add_command(label=tr("Theme manager…"), command=self.show_themes)
+        m.add_cascade(label=tr("Theme"), menu=tm)
+        m.add_checkbutton(label=tr("Add the theme frame to copies and exports"), variable=self.theme_frame,
+                          command=self._opts_changed, state="normal" if self.theme.frame else "disabled")
         fm = tk.Menu(m, tearoff=0, font=UI)
         for k, label in FEATURES:
             fm.add_checkbutton(label=tr(label), variable=self.feat[k], command=self._features_changed)
@@ -3523,6 +4039,44 @@ class App:
             except tk.TclError:
                 pass
 
+    # ---------------------------------------------------------------- themes
+    def sorted_themes(self):
+        order = {"default": 0, "builtin": 1, "user": 2}
+        return sorted(self.themes.values(), key=lambda t: (order.get(t.source, 3), t.name(LANG[0]).lower()))
+
+    def set_theme(self, tid):
+        """Remembers the theme; colours and icons are applied after a restart."""
+        if tid not in self.themes:
+            return
+        if tid == self.st.get("theme", themes.DEFAULT_ID) and tid == self.theme.id:
+            return
+        self.st["theme"] = tid
+        self.st["theme_frame"] = bool(self.themes[tid].frame) or self.theme_frame.get()
+        self.theme_frame.set(self.st["theme_frame"])
+        save_settings(self.st)
+        if tid == self.theme.id:
+            return
+        self.ask_restart(tr("The theme “{name}” is applied after a restart.\nRestart now?",
+                            name=self.themes[tid].name(LANG[0])))
+
+    def ask_restart(self, text, parent=None):
+        if not messagebox.askyesno(APP_NAME, text, parent=parent or self.root):
+            return False
+        self.restart = True
+        self.on_close()
+        try:
+            if self.root.winfo_exists():   # close was cancelled in the save dialog
+                self.restart = False
+        except tk.TclError:
+            pass
+        return self.restart
+
+    def show_themes(self):
+        if getattr(self, "_theme_dlg", None) and self._theme_dlg.winfo_exists():
+            self._theme_dlg.lift()
+            return
+        self._theme_dlg = ThemeDialog(self)
+
     def show_guide(self):
         if getattr(self, "_guide", None) and self._guide.winfo_exists():
             self._guide.lift()
@@ -3536,7 +4090,7 @@ class App:
         top = tk.Frame(w, bg=PANEL)
         top.pack(fill="x", padx=16, pady=(10, 0))
         for code, name in LANGS:
-            FlatButton(top, name, lambda c=code: fill(c), padx=10, pady=3, bg="#F3F4F6", hover="#E5E7EB").pack(side="left", padx=(0, 4))
+            FlatButton(top, name, lambda c=code: fill(c), padx=10, pady=3, bg=BTN, hover=BTN_H).pack(side="left", padx=(0, 4))
         FlatButton(top, tr("Close"), w.destroy, padx=10, pady=3, bg=ACCENT, fg="white", hover=ACCENT_D).pack(side="right")
         fr = tk.Frame(w, bg=PANEL)
         fr.pack(fill="both", expand=True, padx=16, pady=10)
@@ -3577,7 +4131,7 @@ class App:
     def _opts_changed(self):
         self.st.update(autocopy=self.autocopy.get(), include_notes=self.include_notes.get(),
                        autosave=self.autosave.get(), keep_history=self.keep_history.get(),
-                       ask_on_close=self.ask_close.get())
+                       ask_on_close=self.ask_close.get(), theme_frame=self.theme_frame.get())
         for it in self.items:
             it["_gkey"] = None
         self.render()
@@ -3717,19 +4271,19 @@ class App:
             w.destroy()
         btns = []
         if self.feat["feat_pin"].get():
-            btns.append(("📌  " + tr("Pin"), self.pin_current,
+            btns.append(("pin", "📌", tr("Pin"), self.pin_current,
                          tr("Pin the screenshot above all windows  (Ctrl+P)\n"
                             "Drag to move · wheel to zoom · Ctrl+wheel opacity · double-click or Esc to close")))
         if self.feat["feat_ocr"].get():
-            btns.append(("🔤  " + tr("Text"), self.ocr_current,
+            btns.append(("ocr", "🔤", tr("Text"), self.ocr_current,
                          tr("Extract the text of the screenshot  (Ctrl+T)\nWindows OCR, works offline")))
         if self.feat["feat_record"].get():
-            btns.append(("⏺  " + tr("Record"), self.start_record,
+            btns.append(("record", "⏺", tr("Record"), self.start_record,
                          tr("Record part of the screen as an animated GIF  (Ctrl+R)\nEsc or Stop to finish")))
         if btns:
             tk.Frame(self.extra_bar, bg=BORDER, width=1).pack(side="left", fill="y", padx=(12, 6), pady=10)
-            for text, cmd, tip in btns:
-                FlatButton(self.extra_bar, text, cmd, tip=tip).pack(side="left")
+            for key, glyph, text, cmd, tip in btns:
+                FlatButton(self.extra_bar, command=cmd, tip=tip, **self._hbtn(key, glyph, text)).pack(side="left")
 
     def _features_changed(self):
         for k, _ in FEATURES:

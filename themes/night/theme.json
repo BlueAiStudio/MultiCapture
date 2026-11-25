@@ -1,0 +1,54 @@
+{
+  "format": 1,
+  "name": {"zh": "夜晚", "en": "Night", "fr": "Nuit"},
+  "author": "HAO",
+  "version": "1.0",
+  "description": {
+    "zh": "深色界面，月亮和星星；截图放在星空卡片里。",
+    "en": "Dark look with the moon and stars; screenshots sit on a starry card.",
+    "fr": "Apparence sombre avec la lune et les étoiles ; les captures sont posées sur une carte étoilée."
+  },
+  "colors": {
+    "accent": "#7C8CFF",
+    "accent_dark": "#6272F0",
+    "accent_light": "#2A3566",
+    "bg": "#0F172A",
+    "panel": "#121B35",
+    "border": "#26325A",
+    "text": "#E5E9F5",
+    "muted": "#8D9AC0",
+    "canvas": "#0B1226",
+    "button": "#1B2546",
+    "button_hover": "#27335E",
+    "hover": "#1E2A50",
+    "icon": "#D7DEF5",
+    "icon_accent": "#FFD970",
+    "shadow": "#050913",
+    "notes_bg": "#0E1730",
+    "field": "#1B2546",
+    "tooltip_bg": "#FFE38A",
+    "tooltip_text": "#1A1F33",
+    "success": "#7EE2A8"
+  },
+  "decorations": {
+    "header": {"image": "header.png"},
+    "canvas": {"image": "canvas.png", "anchor": "ne", "margin": 0}
+  },
+  "frame": {
+    "margin": 60,
+    "canvas": "#0B1226",
+    "padding": 14,
+    "background": "#16213F",
+    "radius": 16,
+    "border": {"color": "#33427A", "width": 2},
+    "shadow": {"color": "#00000099", "blur": 22, "offset": [0, 8]},
+    "caption": {"height": 46, "text": "{date}  ·  {time}", "color": "#C9D2F0", "size": 22},
+    "ornaments": [
+      {"image": "deco/moon.png", "anchor": "ne", "size": 130, "offset": [18, -18]},
+      {"image": "deco/star.png", "anchor": "nw", "size": 40, "offset": [-6, -6]},
+      {"image": "deco/sparkle.png", "anchor": "sw", "size": 30, "offset": [-4, 8]},
+      {"image": "deco/star.png", "anchor": "se", "size": 26, "offset": [6, 8]},
+      {"image": "deco/sparkle.png", "anchor": "n", "size": 22, "offset": [-120, -14]}
+    ]
+  }
+}

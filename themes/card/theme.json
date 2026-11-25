@@ -1,0 +1,20 @@
+{
+  "format": 1,
+  "name": {"zh": "简约卡片", "en": "Simple card", "fr": "Carte simple"},
+  "author": "HAO",
+  "version": "1.0",
+  "description": {
+    "zh": "界面不变，只给截图加圆角、阴影和窗口标题栏。适合贴到文档和邮件里。",
+    "en": "Same look as usual; screenshots get rounded corners, a soft shadow and a window title bar.",
+    "fr": "Interface habituelle ; les captures ont des coins arrondis, une ombre douce et une barre de titre."
+  },
+  "frame": {
+    "margin": 30,
+    "canvas": "#EEF1F5",
+    "radius": 12,
+    "background": "#FFFFFF",
+    "border": {"color": "#D9DEE5", "width": 1},
+    "shadow": {"color": "#1F293740", "blur": 18, "offset": [0, 6]},
+    "titlebar": {"height": 34, "color": "#F3F4F6", "dots": true, "text": "{title}", "text_color": "#4B5563"}
+  }
+}
