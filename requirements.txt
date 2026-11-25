@@ -1,3 +1,5 @@
 Pillow>=10.0
+# drag & drop of pictures into the window (optional at run time; its PyInstaller hook bundles tkdnd)
+tkinterdnd2>=0.7.0
 # only needed to build the .exe:
 pyinstaller>=6.0

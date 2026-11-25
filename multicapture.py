@@ -14,6 +14,8 @@ MultiCapture  -  multi-screenshot board for Windows
 * Notes panel per screenshot (optionally included when copying / exporting)
 * Export PNG / JPG / BMP / PDF, all screenshots to PNG files or one PDF
 * Global hotkey Ctrl+Alt+S
+* Drag images in from Explorer or a browser (or Ctrl+V): add them to the board, open them on their
+  own, or lay them over the current screenshot as a movable / resizable picture
 * Optional extras (off by default, Options -> Extra features): pin to screen, text recognition (OCR),
   scrolling capture, screen recording to GIF - see extras.py
 """
@@ -36,6 +38,7 @@ from tkinter import colorchooser, filedialog, messagebox, simpledialog, ttk
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageGrab, ImageTk
 
+import dropin
 import extras
 import themes
 from i18n import LANG, LANGS, detect_lang, guide_text, shortcuts_text, tr
@@ -194,7 +197,7 @@ TOOL_NAMES = {"select": "Select", "pen": "Pen", "highlight": "Highlighter", "lin
               "arrow": "Arrow", "rect": "Rectangle", "ellipse": "Ellipse", "text": "Text box",
               "callout": "Callout", "marker": "Numbered marker", "stamp": "Stamp",
               "mosaic": "Blur", "dist": "Distance", "perim": "Perimeter", "area": "Area",
-              "angle": "Angle", "calib": "Scale reference"}
+              "angle": "Angle", "calib": "Scale reference", "image": "Picture"}
 
 DEFAULT_SETTINGS = {
     "autocopy": True, "include_notes": True, "autosave": False, "save_dir": DEFAULT_SAVE_DIR,
@@ -790,8 +793,36 @@ def d_angle(img, o, s, tf, sc):
                    f"{angle_of(o['pts']):.1f}°", o["color"], o.get("fs", 14) * s)
 
 
+def d_image(img, o, s, tf, sc):
+    """A picture laid over the screenshot (dragged in, pasted, or another screenshot)."""
+    x0, y0, x1, y1 = norm_box(o["box"])
+    a, b = tf(x0, y0)
+    c, d = tf(x1, y1)
+    if c - a < 1 or d - b < 1:
+        return
+    # only the part that is visible in img is resized (fast at high zoom)
+    va, vb, vc, vd = max(a, 0), max(b, 0), min(c, img.width), min(d, img.height)
+    if vc - va < 1 or vd - vb < 1:
+        return
+    src = dropin.OVERLAYS.get(o.get("src"))
+    if src is None:   # picture file lost: grey placeholder
+        blend_draw(img, (va, vb, vc, vd), lambda dr, ox, oy: dr.rectangle(
+            (va - ox, vb - oy, vc - ox, vd - oy), fill=(209, 213, 219, 200), outline="#9CA3AF"))
+        return
+    kx, ky = src.width / (c - a), src.height / (d - b)
+    ia, ib = int(math.floor(va)), int(math.floor(vb))
+    ic, id_ = int(math.ceil(vc)), int(math.ceil(vd))
+    box = ((ia - a) * kx, (ib - b) * ky, min(src.width, (ic - a) * kx), min(src.height, (id_ - b) * ky))
+    layer = dropin.OVERLAYS.scaled(o["src"], (max(1, ic - ia), max(1, id_ - ib)), box, int(o.get("alpha", 100)))
+    if layer is not None:
+        paste_rgba(img, layer, ia, ib)
+    if o.get("border"):
+        w = _lw(o, s)
+        ImageDraw.Draw(img).rectangle((a - w / 2, b - w / 2, c + w / 2 - 1, d + w / 2 - 1), outline=o["color"], width=w)
+
+
 DRAWERS = {"pen": d_pen, "highlight": d_highlight, "line": d_line, "arrow": d_arrow,
-           "rect": d_shape, "ellipse": d_shape, "mosaic": d_mosaic, "text": draw_text_obj,
+           "rect": d_shape, "ellipse": d_shape, "mosaic": d_mosaic, "text": draw_text_obj, "image": d_image,
            "marker": d_marker, "stamp": d_stamp, "dist": d_dist, "calib": d_dist,
            "perim": d_perim, "area": d_area, "angle": d_angle}
 
@@ -806,6 +837,10 @@ def obj_bbox(o):
         return [min(xs) - m, min(ys) - m, max(xs) + m, max(ys) + m]
     if t in ("rect", "ellipse", "mosaic"):
         return norm_box(o["box"])
+    if t == "image":
+        x0, y0, x1, y1 = norm_box(o["box"])
+        m = o.get("width", 2) / 2 if o.get("border") else 0
+        return [x0 - m, y0 - m, x1 + m, y1 + m]
     if t == "text":
         L = text_layout(o, 1)
         return [o["x"], o["y"], o["x"] + L["W"], o["y"] + L["H"]]
@@ -858,7 +893,7 @@ def move_obj(o, dx, dy):
 
 def handles(o):
     t = o["type"]
-    if t in ("rect", "ellipse", "mosaic"):
+    if t in ("rect", "ellipse", "mosaic", "image"):
         x0, y0, x1, y1 = o["box"]
         return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
     if t in ("line", "arrow", "dist", "calib"):
@@ -872,7 +907,9 @@ def handles(o):
 
 def set_handle(o, i, x, y):
     t = o["type"]
-    if t in ("rect", "ellipse", "mosaic"):
+    if t == "image":   # corners keep the picture's proportions
+        o["box"] = dropin.keep_ratio(norm_box(o["box"]), i, x, y, o.get("ratio") or 1.0)
+    elif t in ("rect", "ellipse", "mosaic"):
         b = o["box"]
         if i == 0:
             b[0], b[1] = x, y
@@ -1352,6 +1389,83 @@ class CloseDialog(tk.Toplevel):
         self.destroy()
 
 
+class DropDialog(tk.Toplevel):
+    """Asked when pictures are dragged into the app (or pasted): where should they go?"""
+
+    def __init__(self, master, images, can_overlay, target_label):
+        super().__init__(master)
+        self.title(tr("Add pictures"))
+        self.configure(bg=PANEL, padx=20, pady=14)
+        self.resizable(False, False)
+        self.transient(master)
+        self.result = None
+        lbl = dict(bg=PANEL, anchor="w", justify="left")
+        n = len(images)
+        tk.Label(self, text=tr("{n} picture(s) dropped – what should happen?", n=n), font=("Segoe UI Semibold", 12),
+                 fg=TEXT, **lbl).pack(fill="x")
+        strip = tk.Frame(self, bg=PANEL)
+        strip.pack(fill="x", pady=(8, 6))
+        self._thumbs = []
+        k = max(1.0, master.winfo_fpixels("1i") / 96.0)
+        for _, im in images[:6]:
+            t = im.copy()
+            t.thumbnail((int(84 * k), int(64 * k)))
+            bg = Image.new("RGBA", t.size, "#FFFFFF")
+            bg.alpha_composite(t)
+            ph = ImageTk.PhotoImage(bg.convert("RGB"))
+            self._thumbs.append(ph)
+            tk.Label(strip, image=ph, bg=BORDER, bd=0, padx=1, pady=1).pack(side="left", padx=(0, 6))
+        if n > 6:
+            tk.Label(strip, text=f"+{n - 6}", font=UI_B, fg=MUTED, bg=PANEL).pack(side="left")
+        opts = [("merge", "▦  " + tr("Merge with the other screenshots"),
+                 tr("Added to the history and to the board (2×2, 3×3 …), copied together as one picture.")),
+                ("solo", "▢  " + tr("Open on its own"),
+                 tr("Added to the history and shown alone, kept out of the board.")),
+                ("overlay", "⧉  " + tr("Float on top of the current screenshot"),
+                 tr("Laid over {t} as a picture you can move and resize; merged into it when copying or saving.",
+                    t=target_label) if can_overlay else tr("Open a screenshot first."))]
+        for key, title, sub in opts:
+            ok = key != "overlay" or can_overlay
+            f = tk.Frame(self, bg=BTN if ok else PANEL, highlightthickness=1, highlightbackground=BORDER,
+                         padx=12, pady=7, cursor="hand2" if ok else "")
+            f.pack(fill="x", pady=3)
+            a = tk.Label(f, text=title, font=UI_BIG, fg=TEXT if ok else MUTED, bg=f["bg"], anchor="w")
+            a.pack(fill="x")
+            b = tk.Label(f, text=sub, font=UI_S, fg=MUTED, bg=f["bg"], anchor="w", justify="left",
+                         wraplength=int(400 * k))
+            b.pack(fill="x")
+            if ok:
+                for w in (f, a, b):
+                    w.bind("<Button-1>", lambda e, k_=key: self._done(k_))
+                    w.bind("<Enter>", lambda e, fr=f: self._hl(fr, True))
+                    w.bind("<Leave>", lambda e, fr=f: self._hl(fr, False))
+        bf = tk.Frame(self, bg=PANEL)
+        bf.pack(fill="x", pady=(10, 0))
+        FlatButton(bf, tr("Cancel"), self.destroy, bg=BTN, hover=BTN_H, padx=12, pady=4).pack(side="right")
+        self.bind("<Escape>", lambda e: self.destroy())
+        self.bind("1", lambda e: self._done("merge"))
+        self.bind("2", lambda e: self._done("solo"))
+        if can_overlay:
+            self.bind("3", lambda e: self._done("overlay"))
+        self.update_idletasks()
+        x = master.winfo_rootx() + master.winfo_width() // 2 - self.winfo_width() // 2
+        y = master.winfo_rooty() + max(40, master.winfo_height() // 2 - self.winfo_height() // 2)
+        self.geometry(f"+{x}+{y}")
+        self.grab_set()
+        self.focus_force()
+        self.wait_window()
+
+    def _hl(self, f, on):
+        c = HOVER if on else BTN
+        f.configure(bg=c, highlightbackground=ACCENT if on else BORDER)
+        for w in f.winfo_children():
+            w.configure(bg=c)
+
+    def _done(self, key):
+        self.result = key
+        self.destroy()
+
+
 class ThemeDialog(tk.Toplevel):
     """Theme manager: preview and choose a theme, get themes from GitHub, import / export / create."""
 
@@ -1806,8 +1920,12 @@ class App:
         self.border = tk.BooleanVar(value=st["border"])
         self.stamp = tk.StringVar(value=st["stamp"])
         self.decimals = tk.IntVar(value=st["decimals"])
+        self.img_border = tk.BooleanVar(value=False)
+        self.img_alpha = tk.IntVar(value=100)
 
         self._build_ui()
+        dropin.OVERLAYS.set_folder(os.path.join(SESSION_DIR, "overlays") if self.keep_history.get() else None)
+        self._setup_drop()
         self._load_history()
         self._update_panel()
         if not self.st.get("guide_shown"):
@@ -2157,6 +2275,21 @@ class App:
             b.grid(row=i // 5, column=i % 5, padx=1, pady=1)
             self.stamp_btns[sym] = b
 
+        # picture laid over the screenshot
+        self.sec_image = self._section(P, "PICTURE")
+        ir = tk.Frame(self.sec_image, bg=PANEL)
+        ir.pack(fill="x")
+        ttk.Checkbutton(ir, text=tr("Border"), variable=self.img_border,
+                        command=lambda: self.on_prop("img_border")).pack(side="left")
+        FlatButton(ir, tr("Original size"), self.image_natural_size, padx=6, pady=1, font=UI_S, bg=BTN, hover=BTN_H,
+                   tip=tr("Show the picture at its own pixel size (1:1)")).pack(side="left", padx=8)
+        tk.Label(self.sec_image, text=tr("Opacity"), bg=PANEL, fg=MUTED, font=UI_S).pack(anchor="w", pady=(4, 0))
+        tk.Scale(self.sec_image, from_=10, to=100, orient="horizontal", variable=self.img_alpha, bg=PANEL,
+                 highlightthickness=0, troughcolor=BTN_H, bd=0, sliderrelief="flat", font=UI_S,
+                 length=int(250 * self.k), command=lambda v: self.on_prop("img_alpha")).pack(fill="x")
+        tk.Label(self.sec_image, text=tr("Drag to move · drag a corner to resize · merged into the screenshot when copying or saving"),
+                 bg=PANEL, fg=MUTED, font=UI_S, wraplength=int(265 * self.k), justify="left").pack(anchor="w", pady=(2, 0))
+
         # measure
         self.sec_measure = self._section(P, "MEASURE")
         self.scale_lbl = tk.Label(self.sec_measure, text=tr("Scale: pixels (not calibrated)"), bg=PANEL, fg=TEXT, font=UI, anchor="w",
@@ -2429,7 +2562,8 @@ class App:
         try:
             os.makedirs(SESSION_DIR, exist_ok=True)
             meta = {"id": it["id"], "num": it["num"], "time": it["time"].isoformat(), "objs": it["objs"],
-                    "notes": it["notes"], "scale": it["scale"], "dirty": it.get("dirty", False)}
+                    "notes": it["notes"], "scale": it["scale"], "dirty": it.get("dirty", False),
+                    "solo": bool(it.get("solo"))}
             with open(os.path.join(SESSION_DIR, it["id"] + ".json"), "w", encoding="utf-8") as f:
                 json.dump(meta, f, ensure_ascii=False)
         except Exception as ex:
@@ -2485,7 +2619,7 @@ class App:
             it = {"id": m["id"], "orig": None, "size": size, "on_disk": True, "objs": objs,
                   "notes": str(m.get("notes") or ""), "time": t, "scale": m.get("scale"),
                   "num": int(m.get("num") or 0), "undo": [], "redo": [], "_final": None,
-                  "dirty": bool(m.get("dirty", False))}
+                  "dirty": bool(m.get("dirty", False)), "solo": bool(m.get("solo", False))}
             for o in it["objs"]:
                 o.setdefault("id", uuid.uuid4().hex[:8])
             self.items.insert(0, it)
@@ -2498,8 +2632,9 @@ class App:
                 order = []
         except Exception:
             pass
-        self.board = [byid[i] for i in order if i in byid]
-        self.board += [it for it in reversed(self.items) if it not in self.board]
+        self.board = [byid[i] for i in order if i in byid and not byid[i].get("solo")]
+        self.board += [it for it in reversed(self.items) if it not in self.board and not it.get("solo")]
+        dropin.OVERLAYS.cleanup(dropin.overlay_keys(self.items))
         if self.items:
             self.st["next_num"] = max(self.st["next_num"], max(i["num"] for i in self.items) + 1)
         self._rebuild_list()
@@ -2586,17 +2721,26 @@ class App:
             m.add_command(label=tr("Pin to screen"), command=lambda: self.pin_image(self.final(it)))
         if self.feat["feat_ocr"].get():
             m.add_command(label=tr("Extract text (OCR)"), command=lambda: self.ocr_image(self.final(it)))
+        if self.sel and it is not self.sel:
+            m.add_command(label=tr("Float on top of the current screenshot (#{n})", n=self.sel["num"]),
+                          command=lambda: self.overlay_images([(f"#{it['num']}", self.final(it).convert("RGBA"))]))
         m.add_separator()
         if it in self.board:
             m.add_command(label=tr("Move to end of board (newest position)"), command=lambda: self._board_to_end(it))
+        else:
+            m.add_command(label=tr("Add to board"), command=lambda: self._board_to_end(it))
         m.add_separator()
         m.add_command(label=tr("Delete"), command=lambda: self.delete_item(it))
         m.add_command(label=tr("Delete ALL screenshots…"), command=lambda: self.delete_many(list(self.items)))
         m.tk_popup(e.x_root, e.y_root)
 
     def _board_to_end(self, it):
-        self.board.remove(it)
+        if it in self.board:
+            self.board.remove(it)
         self.board.append(it)
+        if it.get("solo"):
+            it["solo"] = False
+            self._save_meta(it)
         self._save_board()
         self._update_cards()
         self.render()
@@ -2969,18 +3113,22 @@ class App:
                                    else tr("New: {name}", name=tr(TOOL_NAMES.get(kind, kind))))
         show = {
             "sec_sel": True,
-            "sec_color": kind != "mosaic",
+            "sec_color": kind != "mosaic" and not (kind == "image" and not (o and o.get("border"))),
             "sec_stroke": kind in ("pen", "highlight", "line", "arrow", "rect", "ellipse", "mosaic", "dist", "calib",
-                                   "perim", "area", "angle", "callout") or (kind == "text" and o and o.get("leader")),
+                                   "perim", "area", "angle", "callout") or (kind == "text" and o and o.get("leader"))
+                          or (kind == "image" and o and o.get("border")),
             "sec_fill": kind in ("rect", "ellipse", "area"),
             "sec_text": kind in ("text", "callout"),
             "sec_size": kind in ("marker", "stamp", "dist", "calib", "perim", "area", "angle"),
             "sec_stamp": kind == "stamp",
+            "sec_image": kind == "image",
             "sec_measure": kind in ("dist", "calib", "perim", "area", "angle") or kind == "select",
         }
-        for name in ("sec_sel", "sec_color", "sec_stroke", "sec_fill", "sec_text", "sec_size", "sec_stamp", "sec_measure"):
+        for name in ("sec_sel", "sec_color", "sec_stroke", "sec_fill", "sec_text", "sec_size", "sec_stamp", "sec_image",
+                     "sec_measure"):
             getattr(self, name).pack_forget()
-        for name in ("sec_sel", "sec_color", "sec_stroke", "sec_fill", "sec_text", "sec_size", "sec_stamp", "sec_measure"):
+        for name in ("sec_sel", "sec_color", "sec_stroke", "sec_fill", "sec_text", "sec_size", "sec_stamp", "sec_image",
+                     "sec_measure"):
             if show[name]:
                 getattr(self, name).pack(fill="x")
         self._refresh_swatches()
@@ -3126,6 +3274,11 @@ class App:
             o["border"] = self.border.get()
         elif key == "stamp" and t == "stamp":
             o["sym"] = self.stamp.get()
+        elif key == "img_border" and t == "image":
+            o["border"] = self.img_border.get()
+            o["color"], o["width"] = self.color, self._w()
+        elif key == "img_alpha" and t == "image":
+            o["alpha"] = int(self.img_alpha.get())
         if json.dumps(o, sort_keys=True) == before:
             return
         lid, lkey, lt = self._last_prop
@@ -3167,6 +3320,9 @@ class App:
                 self.fsize.set(int(round(o["size"])))
             if o["type"] == "stamp":
                 self.stamp.set(o["sym"])
+            if o["type"] == "image":
+                self.img_border.set(bool(o.get("border")))
+                self.img_alpha.set(int(o.get("alpha", 100)))
         finally:
             self._loading = False
 
@@ -3843,6 +3999,120 @@ class App:
                 self.set_tool(t[0])
                 return "break"
 
+    # ===================================================================== pictures from outside
+    def _setup_drop(self):
+        """Drag & drop of picture files (Explorer) and images / links (browser) onto the window."""
+        self.dnd = dropin.enable_dnd(self.root)
+        if not self.dnd:
+            return
+        for w in (self.root, self.canvas, self.list_canvas):
+            try:
+                dropin.register(w, self.on_drop)
+            except Exception as ex:
+                print("drop target", ex)
+
+    def on_drop(self, items, xr=None, yr=None):
+        if self.busy:
+            return
+        self.set_status(tr("Opening dropped pictures…"))
+        dropin.load_items(items, lambda imgs, errs: self.q.put(("dropped", imgs, errs, xr, yr)))
+
+    def _dropped(self, images, errors, xr=None, yr=None):
+        bad = "\n".join(f"• {n}: {e}" for n, e in errors[:8])
+        if not images:
+            if errors:
+                messagebox.showwarning(tr("Add pictures"), tr("These could not be opened as pictures:") + "\n" + bad,
+                                       parent=self.root)
+            self.set_status(tr("Nothing added – drop picture files, or pictures from a web page"))
+            return
+        self.root.lift()
+        self.root.focus_force()
+        tgt = self.sel
+        r = DropDialog(self.root, images, tgt is not None, f"#{tgt['num']}" if tgt else "").result
+        if r is None:
+            self.set_status(tr("Cancelled"))
+            return
+        if r == "overlay":
+            self.overlay_images(images, xr, yr)
+        else:
+            self.add_images(images, solo=(r == "solo"))
+        if errors:
+            messagebox.showwarning(tr("Add pictures"), tr("These could not be opened as pictures:") + "\n" + bad,
+                                   parent=self.root)
+
+    def add_images(self, images, solo=False):
+        """Pictures become screenshots of their own: on the board (merge) or kept out of it (solo)."""
+        self.commit_edit()
+        self.cancel_building()
+        added = []
+        for _, im in images:
+            rgb = Image.new("RGB", im.size, "#FFFFFF")
+            rgb.paste(im, mask=im.getchannel("A") if im.mode == "RGBA" else None)
+            it = self.new_item(rgb, solo=solo)
+            self.items.insert(0, it)
+            if not solo:
+                self.board.append(it)
+            self._persist_new(it)
+            added.append(it)
+        self._prune()
+        self._rebuild_list()
+        if solo:
+            if self.view_n() != 1:
+                self.set_view("Single")
+        elif self.view_n() == 1 and len(self.board) > 1:
+            n = len(self.board)
+            self.set_view("2×2" if n <= 4 else "3×3" if n <= 9 else "4×4")
+        self.select_item(added[-1])
+        self.set_status(tr("{n} picture(s) added", n=len(added)) +
+                        ("" if solo else tr("  ·  merged into the board")))
+        self._schedule_copy(150)
+
+    def overlay_images(self, images, xr=None, yr=None):
+        """Lay pictures over the current screenshot as movable, resizable "image" annotations."""
+        it = self.sel
+        if not it or not images:
+            return
+        self.commit_edit()
+        self.cancel_building()
+        was_single = self.view_n() == 1
+        if not was_single:
+            self.set_view("Single")
+        if self.tool.get() != "select":
+            self.set_tool("select")
+        W, H = it["size"]
+        cx, cy = W / 2, H / 2
+        if was_single and xr is not None:
+            ex, ey = xr - self.canvas.winfo_rootx(), yr - self.canvas.winfo_rooty()
+            px, py = self.to_img(ex, ey)
+            if 0 <= px <= W and 0 <= py <= H:
+                cx, cy = px, py
+        self.push_undo()
+        o = None
+        step = 24 / max(self.s, 0.02)
+        for i, (_, im) in enumerate(images):
+            key = dropin.OVERLAYS.put(im)
+            box = dropin.fit_box(im.width, im.height, W, H, cx + i * step, cy + i * step)
+            o = self._new_obj("image", box=box, src=key, ratio=im.width / im.height, alpha=100, border=False)
+            it["objs"].append(o)
+        self.select_obj(o)
+        self.changed()
+        self.set_status(tr("{n} picture(s) placed on #{num}  ·  drag to move, corners to resize", n=len(images),
+                           num=it["num"]))
+
+    def image_natural_size(self):
+        """Selected picture back to its own pixel size (1:1), keeping its top-left corner."""
+        o = self.sel_obj
+        if not o or o.get("type") != "image" or not self.sel or o not in self.sel["objs"]:
+            return
+        src = dropin.OVERLAYS.get(o["src"])
+        if src is None:
+            return
+        self.push_undo()
+        x0, y0 = norm_box(o["box"])[:2]
+        o["box"] = [x0, y0, x0 + src.width, y0 + src.height]
+        o["ratio"] = src.width / src.height
+        self.changed()
+
     # ===================================================================== copy / save
     def _schedule_copy(self, ms=600):
         if self.autocopy.get() and self.items:
@@ -4158,6 +4428,7 @@ class App:
             it["_gkey"] = None
         self.render()
         save_settings(self.st)
+        dropin.OVERLAYS.set_folder(os.path.join(SESSION_DIR, "overlays") if self.keep_history.get() else None)
         if self.keep_history.get():
             for it in self.items:
                 p = os.path.join(SESSION_DIR, it["id"] + ".png")
@@ -4458,6 +4729,8 @@ class App:
                             self.set_status(tr("Copied {label} to clipboard ({w} × {h})", label=label, w=size[0], h=size[1]))
                     else:
                         self.set_status(tr("⚠ Clipboard busy - try Copy again"))
+                elif m[0] == "dropped":
+                    self._dropped(*m[1:])
                 elif m[0] == "gif_progress":
                     self.set_status(tr("Saving GIF… {p}%", p=m[1]))
                 elif m[0] == "gif_saved":

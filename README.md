@@ -16,6 +16,7 @@ The built-in Snipping Tool keeps one capture at a time. MultiCapture keeps **all
 
 - **Nothing is overwritten**: every capture goes into the history panel (and survives a restart).
 - **Board views**: Single / 2×2 / 3×3 / 4×4 / All. Drag cells to reorder them.
+- **Drag pictures in** from Explorer or a web browser. Choose to merge them with the other screenshots (board), open them on their own, or **float them on top of the current screenshot** as a movable, resizable picture (border, opacity) that is merged into it when copying or saving.
 - **Auto-copy**: the current view (single image or whole grid) is put on the clipboard and pastes straight into Outlook, Word, Excel or Teams.
 - **Editable annotations**: pen, highlighter, line, arrow, rectangle, ellipse, numbered markers, stamps, blur and callouts. Everything stays movable and editable.
 - **Word-like text boxes**: font, size, bold / italic / underline, colour, background, border and alignment, with a ✥ grip to move them.
@@ -46,7 +47,7 @@ Get `MultiCapture.exe` from the [latest release](https://github.com/xieganglaoli
 Requires Windows 10/11 and Python 3.10+.
 
 ```powershell
-pip install Pillow
+pip install -r requirements.txt
 python multicapture.py
 ```
 
@@ -89,6 +90,7 @@ Session data is stored in `%APPDATA%\MultiCapture\`.
 系统自带的截图工具每次只保留一张。MultiCapture 会把**每一次**截图都保存在左侧的历史栏里，不会被覆盖。
 
 - 支持单张、2×2、3×3、4×4 和全部宫格视图，拖动格子就能调整顺序；
+- 可以从资源管理器或浏览器直接把图片拖进来，选择「和现有其他图片合并」（加入拼图）、「单独打开」，或「悬浮到当前图片上」：图片放在截图上面，可拖动、缩放、加边框、调不透明度，复制或保存时合并成一张；
 - 当前视图会自动复制到剪贴板，可以直接粘贴到 Outlook、Word、Excel 或 Teams；
 - 提供可编辑的标注：画笔、箭头、框、编号、印章、马赛克、标注框，以及类似 Word 的文字框（可设字体、字号、颜色，用 ✥ 拖动）；
 - 提供类似 PDF 阅读器的测量功能：距离、周长、面积、角度，可以标定比例；
@@ -107,7 +109,7 @@ Session data is stored in `%APPDATA%\MultiCapture\`.
 
 下载：在 [Releases](https://github.com/xieganglaoliu/MultiCapture/releases/latest) 页面下载 `MultiCapture.exe`，免安装、不需要 Python。
 
-运行源码：`pip install Pillow`，然后执行 `python multicapture.py`。打包：运行 `build.ps1`，生成的 `dist\MultiCapture.exe` 是免安装版，双击即可使用。
+运行源码：`pip install -r requirements.txt`，然后执行 `python multicapture.py`。打包：运行 `build.ps1`，生成的 `dist\MultiCapture.exe` 是免安装版，双击即可使用。
 
 ---
 
@@ -116,6 +118,7 @@ Session data is stored in `%APPDATA%\MultiCapture\`.
 L'Outil Capture d'écran ne garde qu'une capture à la fois. MultiCapture les garde **toutes** dans un historique.
 
 - Vues en grille 2×2 / 3×3 / 4×4, réorganisables par glisser-déposer ;
+- Glissez des images depuis l'Explorateur ou un navigateur : fusionnez-les avec les autres captures, ouvrez-les à part, ou superposez-les sur la capture actuelle (déplaçables, redimensionnables, fusionnées à la copie) ;
 - La vue courante est copiée automatiquement dans le presse-papiers (Outlook, Word, Excel…) ;
 - Annotations modifiables et zones de texte de type Word ;
 - Mesures façon PDF : distance, périmètre, surface, angle ;
@@ -126,7 +129,7 @@ L'Outil Capture d'écran ne garde qu'une capture à la fois. MultiCapture les ga
 
 Téléchargement : `MultiCapture.exe` dans les [Releases](https://github.com/xieganglaoliu/MultiCapture/releases/latest), sans installation ni Python.
 
-Lancement : `pip install Pillow`, puis `python multicapture.py`. Pour créer l'exe portable, lancez `build.ps1`.
+Lancement : `pip install -r requirements.txt`, puis `python multicapture.py`. Pour créer l'exe portable, lancez `build.ps1`.
 
 ---
 

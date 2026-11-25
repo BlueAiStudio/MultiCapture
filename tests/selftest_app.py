@@ -84,6 +84,50 @@ extras.save_gif(r, path)
 with Image.open(path) as g:
     print("recording OK", g.size, g.n_frames, "frames")
 
+# --- pictures dragged in from outside (the OLE drop itself cannot be simulated; everything after it is)
+assert app.dnd, "tkinterdnd2 drop target not available"
+drop_png = os.path.join(os.environ["APPDATA"], "dropped.png")
+Image.new("RGBA", (300, 120), (0, 160, 0, 255)).save(drop_png)
+choice = ["merge"]
+
+
+class FakeDrop:   # stands in for the modal DropDialog
+    def __init__(self, master, images, can_overlay, label):
+        self.result = choice[0]
+
+
+real_dialog, mc.DropDialog = mc.DropDialog, FakeDrop
+app.set_view("Single")
+n_items, n_board = len(app.items), len(app.board)
+app.on_drop([drop_png])
+pump(1.0)
+assert len(app.items) == n_items + 1 and len(app.board) == n_board + 1, "merge: added to the board"
+assert app.view_n() != 1, "merge switches to a board view"
+print("drop merge OK")
+
+choice[0] = "solo"
+app.on_drop([drop_png])
+pump(1.0)
+solo = app.sel
+assert solo.get("solo") and solo not in app.board and app.view_n() == 1, "solo: kept out of the board"
+print("drop solo OK")
+
+choice[0] = "overlay"
+base = app.sel
+app.on_drop([drop_png])
+pump(1.0)
+o = app.sel_obj
+assert o and o["type"] == "image" and o in base["objs"], "overlay object expected"
+fin = app.final(base)
+cx, cy = int((o["box"][0] + o["box"][2]) / 2), int((o["box"][1] + o["box"][3]) / 2)
+assert fin.getpixel((cx, cy)) == (0, 160, 0), fin.getpixel((cx, cy))
+app.undo()
+assert not [x for x in base["objs"] if x["type"] == "image"], "undo removes the overlay"
+app.redo()
+assert [x for x in base["objs"] if x["type"] == "image"], "redo restores it"
+print("drop overlay OK")
+mc.DropDialog = real_dialog
+
 app.feat["feat_scroll"].set(False)
 app._features_changed()
 assert app._key(app.mode_var, mc.ALL_MODES) == "Region"
