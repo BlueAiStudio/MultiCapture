@@ -384,7 +384,6 @@ TR = {
     "SHORTCUTS": (
         "Ctrl+Alt+S   capture depuis n'importe où (global)\n"
         "Ctrl+N         nouvelle capture\n"
-        "F5               même zone + surligner les changements\n"
         "Ctrl+C         copier la vue actuelle\n"
         "Ctrl+S         enregistrer la vue   ·   Ctrl+Maj+S  tout enregistrer\n"
         "Ctrl+Z / Y    annuler / rétablir\n"
@@ -402,7 +401,6 @@ TR = {
         "G surface · Q angle · K échelle",
         "Ctrl+Alt+S   在任意位置截图（全局）\n"
         "Ctrl+N         新建截图\n"
-        "F5               同位置再截 + 高亮不同\n"
         "Ctrl+C         复制当前视图\n"
         "Ctrl+S         保存当前视图   ·   Ctrl+Shift+S  全部保存\n"
         "Ctrl+Z / Y    撤销 / 重做\n"
@@ -418,7 +416,7 @@ TR = {
         "R 矩形 · E 椭圆 · T 文字 · C 标注框 · N 编号\n"
         "S 符号 · W 表格 · B 马赛克 · D 距离 · M 周长\n"
         "G 面积 · Q 角度 · K 校准比例"),
-    # ---------------------------------------------------------------- table, symbols, same area
+    # ---------------------------------------------------------------- table, symbols
     "Table  (W)  - drag to place it, double-click a cell to type":
         ("Tableau  (W)  - tracez-le, double-cliquez sur une case pour écrire", "表格  (W)  - 拖出表格，双击格子输入文字"),
     "Table": ("Tableau", "表格"),
@@ -463,24 +461,6 @@ TR = {
     "Maths": ("Maths", "数学"),
     "Greek": ("Grec", "希腊字母"),
     "Numbers": ("Numéros", "编号"),
-    "Same area": ("Même zone", "同位置截图"),
-    "Capture the same screen area as the selected screenshot again\nand highlight what changed  (F5)":
-        ("Recapturer la même zone de l'écran que la capture sélectionnée\net surligner ce qui a changé  (F5)",
-         "在与当前截图完全相同的屏幕位置再截一张，\n并高亮标出不同的地方  (F5)"),
-    "Capture this area again and compare": ("Recapturer cette zone et comparer", "同位置再截一张并对比"),
-    "Select a screenshot taken with this version first.\n(Scrolling captures, pasted pictures and older screenshots have no saved screen position.)":
-        ("Sélectionnez d'abord une capture faite avec cette version.\n"
-         "(Les captures défilantes, les images collées et les anciennes captures n'ont pas de position enregistrée.)",
-         "请先选中一张用这个版本截的图。\n（长截图、粘贴的图片和旧截图没有记录屏幕位置。）"),
-    "That area is no longer on the screen (the monitors changed).":
-        ("Cette zone n'est plus à l'écran (les moniteurs ont changé).", "这个位置已经不在屏幕上了（显示器设置变了）。"),
-    "Screenshot #{n} added  ·  {k} differences from #{m} highlighted":
-        ("Capture n°{n} ajoutée  ·  {k} différences avec n°{m} surlignées", "已添加截图 #{n}  ·  与 #{m} 相比有 {k} 处不同，已高亮"),
-    "Screenshot #{n} added  ·  no difference from #{m}":
-        ("Capture n°{n} ajoutée  ·  aucune différence avec n°{m}", "已添加截图 #{n}  ·  与 #{m} 完全相同"),
-    "Screenshot #{n} added  ·  could not compare with #{m} (different size)":
-        ("Capture n°{n} ajoutée  ·  comparaison impossible avec n°{m} (taille différente)",
-         "已添加截图 #{n}  ·  与 #{m} 大小不同，无法对比"),
     # ---------------------------------------------------------------- optional extra features
     "Extra features": ("Fonctions supplémentaires", "扩展功能"),
     "Pin to screen": ("Épingler à l'écran", "贴图置顶"),
@@ -550,7 +530,6 @@ TR = {
 SHORTCUTS_EN = (
     "Ctrl+Alt+S   capture from anywhere (global)\n"
     "Ctrl+N         new capture\n"
-    "F5               same area again + highlight changes\n"
     "Ctrl+C         copy current view\n"
     "Ctrl+S         save current view    ·   Ctrl+Shift+S  save all\n"
     "Ctrl+Z / Y    undo / redo\n"
@@ -582,7 +561,6 @@ MultiCapture keeps every screenshot you take. Arrange several of them on one boa
 - Click ＋ New capture, press Ctrl+N in the app, or press Ctrl+Alt+S anywhere in Windows (the app can stay minimised).
 - Drag a rectangle on the screen. Esc or right-click cancels.
 - Capture mode: Region, Full screen (all monitors) or Last region (repeats the previous rectangle – ideal for a series of the same area).
-- ⟳ Same area (F5): captures exactly the same screen area as the selected screenshot again and puts a red highlight around everything that changed – ideal for before / after comparisons. The highlights are normal rectangles: move, recolour or delete them; Ctrl+Z removes them all.
 - Delay: 3, 5 or 10 s to open a menu or tooltip before the capture.
 > Every capture is added to the HISTORY on the left. Nothing is ever overwritten.
 
@@ -663,7 +641,6 @@ MultiCapture conserve toutes vos captures d'écran. Disposez-en plusieurs sur un
 - Cliquez sur ＋ Nouvelle capture, appuyez sur Ctrl+N dans l'application, ou sur Ctrl+Alt+S n'importe où dans Windows (l'application peut rester réduite).
 - Tracez un rectangle à l'écran. Échap ou clic droit pour annuler.
 - Mode de capture : Zone, Plein écran (tous les écrans) ou Dernière zone (répète le rectangle précédent – idéal pour une série sur la même zone).
-- ⟳ Même zone (F5) : recapture exactement la même zone de l'écran que la capture sélectionnée et entoure en rouge tout ce qui a changé – idéal pour comparer avant / après. Les surlignages sont des rectangles normaux : déplacez-les, changez leur couleur ou supprimez-les ; Ctrl+Z les retire tous.
 - Délai : 3, 5 ou 10 s pour ouvrir un menu ou une info-bulle avant la capture.
 > Chaque capture est ajoutée à l'HISTORIQUE à gauche. Rien n'est jamais écrasé.
 
@@ -744,7 +721,6 @@ MultiCapture 会保留你截的每一张图。可以把多张截图放在同一�
 - 点击「＋ 新建截图」，或在软件中按 Ctrl+N，或在 Windows 任意位置按 Ctrl+Alt+S（软件最小化也可以）。
 - 在屏幕上拖出一个矩形。按 Esc 或右键取消。
 - 截图模式：矩形区域、全屏（所有显示器）、上次区域（重复上一次的矩形，适合连续截同一位置）。
-- ⟳ 同位置截图（F5）：在与当前选中截图完全相同的屏幕位置再截一张，并用红框高亮所有不同的地方，适合前后对比。红框是普通矩形标注，可以移动、改颜色或删除；Ctrl+Z 一次全部去掉。
 - 延迟：3、5 或 10 秒，方便先打开菜单或提示再截图。
 > 每次截图都会添加到左侧的「历史记录」中，永远不会覆盖之前的截图。
 

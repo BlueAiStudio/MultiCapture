@@ -1,4 +1,4 @@
-"""Tests for the table annotation, the symbol font fallback and the "same area" difference finder."""
+"""Tests for the table annotation and the symbol font fallback."""
 import ctypes
 import os
 import sys
@@ -15,9 +15,8 @@ if not hasattr(ctypes, "windll"):        # lets the tests run on Linux / macOS t
             return 0
     ctypes.windll = _Any()
 
-from PIL import Image, ImageDraw  # noqa: E402
+from PIL import Image  # noqa: E402
 
-import compare  # noqa: E402
 import multicapture as mc  # noqa: E402
 
 
@@ -118,63 +117,6 @@ class SymbolTest(unittest.TestCase):
     def test_symbol_groups_are_single_characters(self):
         for name, syms in mc.SYMBOL_GROUPS:
             self.assertTrue(syms and all(len(ch) == 1 for ch in syms), name)
-
-
-class CompareTest(unittest.TestCase):
-    def base(self):
-        im = Image.new("RGB", (640, 400), "#F0F0F0")
-        d = ImageDraw.Draw(im)
-        d.rectangle((20, 20, 300, 60), fill="#1E88E5")
-        d.text((30, 100), "Revision A", fill="black")
-        return im
-
-    def test_identical(self):
-        a = self.base()
-        self.assertEqual(compare.diff_regions(a, a.copy()), [])
-        self.assertEqual(compare.changed_fraction(a, a.copy()), 0)
-
-    def test_size_mismatch(self):
-        self.assertIsNone(compare.diff_regions(self.base(), Image.new("RGB", (10, 10))))
-
-    def test_two_separate_changes(self):
-        a = self.base()
-        b = a.copy()
-        d = ImageDraw.Draw(b)
-        d.rectangle((400, 200, 450, 240), fill="red")
-        d.point((5, 395), fill="black")
-        boxes = compare.diff_regions(a, b)
-        self.assertEqual(len(boxes), 2)
-        big = [bx for bx in boxes if bx[0] > 300][0]
-        self.assertLessEqual(big[0], 400)
-        self.assertLessEqual(big[1], 200)
-        self.assertGreaterEqual(big[2], 451)
-        self.assertGreaterEqual(big[3], 241)
-        self.assertLess(big[2] - big[0], 70)          # tight around the change
-
-    def test_nearby_changes_join(self):
-        a = self.base()
-        b = a.copy()
-        d = ImageDraw.Draw(b)
-        d.text((30, 100), "Revision B", fill="black")   # only one letter differs
-        d.text((30, 112), "new line", fill="black")
-        boxes = compare.diff_regions(a, b)
-        self.assertEqual(len(boxes), 1)
-
-    def test_small_noise_ignored(self):
-        a = self.base()
-        b = Image.eval(a, lambda v: min(255, v + 6))     # slight colour shift, e.g. ClearType / dimming
-        self.assertEqual(compare.diff_regions(a, b), [])
-
-    def test_many_changes_capped(self):
-        a = Image.new("RGB", (800, 800), "white")
-        b = a.copy()
-        d = ImageDraw.Draw(b)
-        for i in range(0, 800, 40):
-            for j in range(0, 800, 40):
-                d.point((i, j), fill="black")
-        boxes = compare.diff_regions(a, b, max_regions=10)
-        self.assertLessEqual(len(boxes), 10)
-        self.assertGreaterEqual(len(boxes), 1)
 
 
 if __name__ == "__main__":

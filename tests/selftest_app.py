@@ -119,13 +119,5 @@ app.sym_win.destroy()
 app.set_tool("select")
 print("table OK")
 
-# same area again: the real screen, twice, compared
-first = app.items[0]
-first["area"] = [0, 0, 200, 150]
-app._grab_again(first)
-pump(0.3)
-assert app.items[0] is not first and app.items[0]["area"] == [0, 0, 200, 150]
-print("same area OK", app.status.cget("text"))
-
 app._shutdown()
 print("ALL OK")

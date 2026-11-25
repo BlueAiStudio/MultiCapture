@@ -36,7 +36,6 @@ from tkinter import colorchooser, filedialog, messagebox, simpledialog, ttk
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageGrab, ImageTk
 
-import compare
 import extras
 import themes
 from i18n import LANG, LANGS, detect_lang, guide_text, shortcuts_text, tr
@@ -165,7 +164,6 @@ UI_BIG = ("Segoe UI Semibold", 10)
 
 PALETTE = ["#E53935", "#FB8C00", "#FDD835", "#43A047", "#00ACC1", "#1E88E5",
            "#3949AB", "#8E24AA", "#D81B60", "#000000", "#757575", "#FFFFFF"]
-DIFF_COLOR = "#E53935"     # highlight of the areas that changed ("Same area")
 VIEW_MODES = [("Single", 1), ("2×2", 4), ("3×3", 9), ("4×4", 16), ("All", 0)]
 STAMPS = ["✔", "✘", "★", "!", "?", "⚠", "●", "➜", "♥", "✚"]
 UNITS = ["mm", "cm", "m", "µm", "in", "ft"]
@@ -2217,9 +2215,6 @@ class App:
         FlatButton(head, command=self.new_capture, bg=ACCENT, fg="white", hover=ACCENT_D,
                    font=UI_BIG, padx=14, pady=6, **self._hbtn("capture", "＋", tr("New capture"), 20),
                    tip=tr("New capture  (Ctrl+N)\nGlobal hotkey from anywhere: Ctrl+Alt+S")).pack(side="left", pady=8)
-        FlatButton(head, "⟳  " + tr("Same area"), self.capture_again, padx=8, pady=6,
-                   tip=tr("Capture the same screen area as the selected screenshot again\n"
-                          "and highlight what changed  (F5)")).pack(side="left", padx=(4, 0), pady=8)
         cb = ttk.Combobox(head, textvariable=self.mode_var, state="readonly", width=12,
                           values=[tr(k) for k in self._mode_keys()])
         self.mode_cb = cb
@@ -2736,17 +2731,14 @@ class App:
         if mode == SCROLL_MODE:
             RegionSelector(self.root, shot, virtual_screen(), self._scroll_region)
         elif mode == "Full screen":
-            self._capture_done(shot, None, area=(0, 0, shot.width, shot.height))
+            self._capture_done(shot, None)
         elif (mode == "Last region" and self.last_region and self.last_region[2] <= shot.width
               and self.last_region[3] <= shot.height):
             self._capture_done(shot.crop(self.last_region), self.last_region)
         else:
             RegionSelector(self.root, shot, virtual_screen(), self._capture_done)
 
-    def _capture_done(self, img, box, area=None, ref=None):
-        """box: the rectangle chosen on the screen (remembered for "Last region"); area: where on the
-        screen the picture comes from, for "Same area" (defaults to box); ref: the earlier screenshot of
-        that area, whose differences are highlighted on the new one."""
+    def _capture_done(self, img, box):
         self.busy = False
         self.root.deiconify()
         self.root.lift()
@@ -2756,18 +2748,14 @@ class App:
             return
         if box:
             self.last_region = box
-        area = area or box
-        it = self.new_item(img.convert("RGB"), area=[int(v) for v in area] if area else None)
-        if ref is not None:
-            self._mark_differences(ref, it)
+        it = self.new_item(img.convert("RGB"))
         self.items.insert(0, it)
         self.board.append(it)
         self._persist_new(it)
         self._prune()
         self._rebuild_list()
         self.select_item(it)
-        if ref is None:
-            self.set_status(tr("Screenshot #{n} added  ({w} × {h})", n=it["num"], w=img.width, h=img.height))
+        self.set_status(tr("Screenshot #{n} added  ({w} × {h})", n=it["num"], w=img.width, h=img.height))
         if self.autocopy.get():
             self.copy_view(auto=True)
         if self.autosave.get():
@@ -2815,8 +2803,7 @@ class App:
         try:
             os.makedirs(SESSION_DIR, exist_ok=True)
             meta = {"id": it["id"], "num": it["num"], "time": it["time"].isoformat(), "objs": it["objs"],
-                    "notes": it["notes"], "scale": it["scale"], "dirty": it.get("dirty", False),
-                    "area": it.get("area")}
+                    "notes": it["notes"], "scale": it["scale"], "dirty": it.get("dirty", False)}
             with open(os.path.join(SESSION_DIR, it["id"] + ".json"), "w", encoding="utf-8") as f:
                 json.dump(meta, f, ensure_ascii=False)
         except Exception as ex:
@@ -2873,9 +2860,6 @@ class App:
                   "notes": str(m.get("notes") or ""), "time": t, "scale": m.get("scale"),
                   "num": int(m.get("num") or 0), "undo": [], "redo": [], "_final": None,
                   "dirty": bool(m.get("dirty", False))}
-            area = m.get("area")
-            if isinstance(area, list) and len(area) == 4 and all(isinstance(v, int) for v in area):
-                it["area"] = area
             for o in it["objs"]:
                 o.setdefault("id", uuid.uuid4().hex[:8])
             self.items.insert(0, it)
@@ -2972,8 +2956,6 @@ class App:
         m.add_command(label=tr("Copy this screenshot"), command=lambda: self._copy_img(self.out_image(it), f"#{it['num']}"))
         m.add_command(label=tr("Save this screenshot as…"),
                       command=lambda: self._save_img(self.out_image(it), f"Capture_{it['num']}", [it]))
-        if it.get("area"):
-            m.add_command(label=tr("Capture this area again and compare"), command=lambda: self.capture_again(it))
         if self.feat["feat_pin"].get():
             m.add_command(label=tr("Pin to screen"), command=lambda: self.pin_image(self.final(it)))
         if self.feat["feat_ocr"].get():
@@ -4002,62 +3984,6 @@ class App:
         self.set_stamp(sym)
         self.set_status(tr("Click on the screenshot to place {sym}", sym=sym))
 
-    # ===================================================================== same area again
-    def capture_again(self, it=None):
-        """Captures the screen area of a screenshot again; what changed is highlighted on the new one."""
-        it = it or self.sel
-        if self.busy:
-            return
-        if not it or not it.get("area"):
-            messagebox.showinfo(tr("Same area"), tr("Select a screenshot taken with this version first.\n"
-                                                     "(Scrolling captures, pasted pictures and older screenshots "
-                                                     "have no saved screen position.)"), parent=self.root)
-            return
-        self.commit_edit()
-        self.cancel_building()
-        self.busy = True
-        d = {"No delay": 0, "3 s": 3, "5 s": 5, "10 s": 10}.get(self._key(self.delay_var, DELAY_KEYS), 0)
-        self.root.withdraw()
-        self.root.after(280 + d * 1000, lambda: self._grab_again(it))
-
-    def _grab_again(self, ref):
-        try:
-            shot = ImageGrab.grab(all_screens=True)
-        except Exception as ex:
-            self.busy = False
-            self.root.deiconify()
-            messagebox.showerror(tr("Capture failed"), str(ex))
-            return
-        x0, y0, x1, y1 = ref["area"]
-        if x1 > shot.width or y1 > shot.height or x0 < 0 or y0 < 0:
-            self.busy = False
-            self.root.deiconify()
-            messagebox.showerror(tr("Same area"), tr("That area is no longer on the screen (the monitors changed)."),
-                                 parent=self.root)
-            return
-        self._capture_done(shot.crop((x0, y0, x1, y1)), None, area=(x0, y0, x1, y1), ref=ref)
-
-    def _mark_differences(self, ref, it):
-        """Adds a highlight rectangle (an ordinary, editable annotation) around each changed area."""
-        try:
-            boxes = compare.diff_regions(self.img_of(ref), it["orig"])
-        except Exception as ex:
-            print("compare", ex)
-            boxes = None
-        if boxes is None:
-            self.set_status(tr("Screenshot #{n} added  ·  could not compare with #{m} (different size)",
-                               n=it["num"], m=ref["num"]))
-            return
-        if not boxes:
-            self.set_status(tr("Screenshot #{n} added  ·  no difference from #{m}", n=it["num"], m=ref["num"]))
-            return
-        it["undo"].append(json.dumps(it["objs"]))       # Ctrl+Z removes the highlights
-        for b in boxes:
-            it["objs"].append({"id": uuid.uuid4().hex[:8], "type": "rect", "color": DIFF_COLOR, "width": 3,
-                               "box": b, "fill": DIFF_COLOR, "fill_alpha": 14, "diff": True})
-        self.set_status(tr("Screenshot #{n} added  ·  {k} differences from #{m} highlighted",
-                           n=it["num"], k=len(boxes), m=ref["num"]))
-
     # ===================================================================== measurement building
     def cancel_building(self):
         if self.building:
@@ -4160,8 +4086,6 @@ class App:
             m.add_command(label=tr("Delete"), command=self.delete_obj, accelerator="Del")
         else:
             m.add_command(label=tr("Copy current view"), command=self.copy_view, accelerator="Ctrl+C")
-            m.add_command(label=tr("Capture this area again and compare"), command=self.capture_again,
-                          accelerator="F5")
             m.add_command(label=tr("Undo"), command=self.undo, accelerator="Ctrl+Z")
             m.add_command(label=tr("Redo"), command=self.redo, accelerator="Ctrl+Y")
             m.add_separator()
@@ -4475,9 +4399,6 @@ class App:
             return "break"
         if ctrl and ks == "n":
             self.new_capture()
-            return "break"
-        if ks == "f5" and not ctrl:
-            self.capture_again()
             return "break"
         if ctrl and ks == "s":
             (self.save_all_png if shift else self.save_view)()
