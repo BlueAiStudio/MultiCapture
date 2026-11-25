@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Same spot** (⟳ button, `Ctrl+Shift+R`, global `Ctrl+Alt+R`, or history-card menu): captures exactly the same screen rectangle as the selected screenshot again and adds it as a new screenshot. Every capture now keeps its screen position (also across restarts).
+- **Compare** (◧ button, `Ctrl+Shift+C`, or history-card menu): before / after window with a draggable slider or side by side, always with one shared zoom and pan. **Highlight differences** tints changed pixels red and boxes each changed area (adjustable tolerance); "Mark differences on 'After'" turns the boxes into editable rectangles; "Copy comparison" copies both images side by side. Opens by itself after a same-spot capture (can be switched off). Images of different sizes are compared on their overlapping top-left part.
+- **Synced board zoom**: Ctrl+wheel over a board cell zooms all cells to the same place; wheel / middle-drag pans them together; Ctrl+0 or Fit resets.
 - **Microsoft Store package**: `build_msix.ps1` builds an MSIX package (signed by the Store when published). In the Store version, settings and history live in the package's own data folder, so "Open folder" opens the right place. CI test-installs the package, checks that it starts, and makes the Store screenshots.
 - **Code signing** of `MultiCapture.exe` in CI with Azure Artifact Signing, switched on by adding the repository secrets (see `docs/CODE_SIGNING.md`).
 - winget manifests (`packaging/winget`), Store listing texts (`docs/STORE.md`) and a privacy policy (`PRIVACY.md`).
