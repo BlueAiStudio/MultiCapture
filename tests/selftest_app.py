@@ -93,5 +93,39 @@ app._features_changed()
 assert not app.extra_bar.winfo_children(), "features off -> no extra buttons"
 print("switching features off OK")
 
+# table: create, type into two cells, Tab adds a row in the last cell
+app.set_view("Single")
+app.select_item(app.items[-1])
+app.set_tool("table")
+o = app._new_table(30, 30)
+app.push_undo()
+app.sel["objs"].append(o)
+o["box"] = [30, 30, 230, 120]
+app.select_obj(o)
+app.start_cell_edit(o, 0, 0)
+app.cell_edit["w"].insert("1.0", "项目 Ø12")
+app._cell_step(1)
+app.insert_symbol("✓")
+for _ in range(len(o["rh"]) * len(o["cw"]) - 1):
+    app._cell_step(1)
+app.commit_edit()
+pump(0.2)
+assert o["cells"][0] == ["项目 Ø12", "✓"], o["cells"]
+assert len(o["rh"]) == 4, len(o["rh"])
+app.final(app.sel)
+app.show_symbols()
+pump(0.3)
+app.sym_win.destroy()
+app.set_tool("select")
+print("table OK")
+
+# same area again: the real screen, twice, compared
+first = app.items[0]
+first["area"] = [0, 0, 200, 150]
+app._grab_again(first)
+pump(0.3)
+assert app.items[0] is not first and app.items[0]["area"] == [0, 0, 200, 150]
+print("same area OK", app.status.cget("text"))
+
 app._shutdown()
 print("ALL OK")

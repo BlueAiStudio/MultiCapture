@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Table tool** (`W`): choose rows × columns (e.g. 3 × 2) in the TABLE section and drag on the screenshot. Double-click a cell to type; Tab = next cell (adds a row in the last cell), Enter = cell below, Shift+Enter = new line. Drag the white dots on the lines to resize columns and rows; right-click a cell to insert / delete rows and columns. Line colour and width, font, size, bold and alignment, header row and white background are editable at any time; cells grow to fit their text.
+- **Symbol panel** (Ω Symbols… in the TEXT section, More symbols… in the stamp section): one click inserts ✓ ✗ ★ → ⚠ ± ° Ø ⌀ ≤ ≥ ① α … into the text box or table cell being typed, otherwise makes it the stamp. Symbols in text boxes and tables are now drawn with the symbol font, so they no longer turn into empty boxes in copies and exports.
+- **Same area** (⟳ button, `F5`, or right-click a history card): captures exactly the same screen area as the selected screenshot again and highlights every changed area with a red rectangle (ordinary, editable annotations; Ctrl+Z removes them). Region, Last region and Full screen captures remember their screen position.
 - **Microsoft Store package**: `build_msix.ps1` builds an MSIX package (signed by the Store when published). In the Store version, settings and history live in the package's own data folder, so "Open folder" opens the right place. CI test-installs the package, checks that it starts, and makes the Store screenshots.
 - **Code signing** of `MultiCapture.exe` in CI with Azure Artifact Signing, switched on by adding the repository secrets (see `docs/CODE_SIGNING.md`).
 - winget manifests (`packaging/winget`), Store listing texts (`docs/STORE.md`) and a privacy policy (`PRIVACY.md`).
