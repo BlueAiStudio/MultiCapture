@@ -31,6 +31,13 @@ def enable_dnd(root):
         return False
     try:
         TkinterDnD._require(root)
+        # tkinterdnd2 adds its methods to tkinter.BaseWidget only; the root window (tkinter.Tk) is not one,
+        # so give it the same methods (what TkinterDnD.Tk does), else the window itself is no drop target
+        import tkinter
+        for n in ("_subst_format_dnd", "_subst_format_str_dnd", "_substitute_dnd", "_dnd_bind", "dnd_bind",
+                  "drop_target_register", "drop_target_unregister"):
+            if n not in vars(tkinter.Tk) and hasattr(tkinter.BaseWidget, n):
+                setattr(tkinter.Tk, n, getattr(tkinter.BaseWidget, n))
         return True
     except Exception as ex:
         print("drag & drop unavailable:", ex)

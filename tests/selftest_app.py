@@ -85,7 +85,7 @@ with Image.open(path) as g:
     print("recording OK", g.size, g.n_frames, "frames")
 
 # --- pictures dragged in from outside (the OLE drop itself cannot be simulated; everything after it is)
-assert app.dnd, "tkinterdnd2 drop target not available"
+assert app.dnd and app.drop_targets == 3, f"drop targets: dnd={app.dnd} n={app.drop_targets}"
 drop_png = os.path.join(os.environ["APPDATA"], "dropped.png")
 Image.new("RGBA", (300, 120), (0, 160, 0, 255)).save(drop_png)
 choice = ["merge"]

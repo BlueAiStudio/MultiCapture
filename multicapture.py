@@ -4003,11 +4003,13 @@ class App:
     def _setup_drop(self):
         """Drag & drop of picture files (Explorer) and images / links (browser) onto the window."""
         self.dnd = dropin.enable_dnd(self.root)
+        self.drop_targets = 0
         if not self.dnd:
             return
         for w in (self.root, self.canvas, self.list_canvas):
             try:
                 dropin.register(w, self.on_drop)
+                self.drop_targets += 1
             except Exception as ex:
                 print("drop target", ex)
 
