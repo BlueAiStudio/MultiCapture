@@ -1,6 +1,6 @@
 # MultiCapture 主题制作说明
 
-[中文](#中文) · [English](#english)
+[中文](#中文) · [English](#english) · [Français](#français)
 
 ---
 
@@ -262,3 +262,55 @@ The colour names, icon names and every frame option are listed in the tables of 
 **Publish (project owner):** upload the theme folder into [`themes/`](../themes) on the `main` branch (GitHub web:
 Add file → Upload files, drag the folder). "Get online themes" in the app lists it right away; CI checks it; the
 next release bundles it into the exe.
+
+---
+
+## Français
+
+Un thème change les couleurs, l'icône de chaque fonction et les décorations de MultiCapture, et peut ajouter un
+cadre aux captures que vous copiez et exportez. C'est un dossier qui contient un fichier `theme.json` et quelques
+images PNG. Aucun code n'est nécessaire et l'application n'exécute jamais de code venant d'un thème.
+
+**Démarrage rapide :** cliquez sur 🎨 **Thèmes**, choisissez un thème, cliquez sur **Créer le mien à partir de
+celui-ci…**, puis modifiez les images et `theme.json` dans le dossier qui s'ouvre
+(`%APPDATA%\MultiCapture\themes\<id>`). Choisissez-le dans la fenêtre Thèmes et redémarrez.
+
+**Fichiers :** `theme.json` (obligatoire), `preview.png` (520 × 330, facultatif), `icons/<nom>.png` (une par
+fonction, carrée, fond transparent, 96 px ou plus ; les icônes absentes gardent l'icône par défaut), et toutes les
+images citées dans `theme.json`. Le nom du dossier est l'identifiant du thème (`a-z`, `0-9`, `-`, `_`). Types de
+fichiers acceptés : json, png, jpg, gif, webp, bmp, txt, md ; 8 Mo maximum par fichier et 4096 × 4096 par image.
+
+**Clés de theme.json :** `format` (1), `name`, `description` (un texte ou `{"en", "zh", "fr"}`), `author`,
+`version` (à augmenter quand vous mettez un thème à jour, pour que la mise à jour soit proposée), `colors`,
+`icons`, `decorations`, `frame`. Les noms de couleurs et toutes les options du cadre sont détaillés dans les
+tableaux de la partie chinoise ci-dessus ; les noms sont les mêmes dans toutes les langues.
+
+- **Couleurs :** `accent`, `accent_dark`, `accent_light`, `bg`, `panel`, `border`, `text`, `muted`, `canvas`,
+  `button`, `button_hover`, `hover`, `icon` (couleur des icônes par défaut : à éclaircir pour un thème sombre),
+  `icon_accent`, `shadow`, `notes_bg`, `field`, `tooltip_bg`, `tooltip_text`, `success`. Format `#RRGGBB`.
+- **Noms des icônes :** outils `select pen highlight line arrow rect ellipse text callout marker stamp mosaic dist
+  perim area angle calib` ; barre du haut `capture copy save delete options themes help` ; boutons des fonctions
+  supplémentaires `pin ocr record`.
+- **Décorations :** `header` (à droite de la barre du haut) et `canvas` (derrière la capture ; `anchor` vaut
+  `nw n ne w center e sw s se` ou `tile`, plus `margin`).
+- **Cadre, style :** `margin`, `canvas`, `padding`, `background`, `radius`, `border {color, width}`,
+  `shadow {color, blur, offset}`, `titlebar {height, color, dots, text, text_color}`,
+  `caption {height, text, color, size, bold, align}`. Les textes peuvent contenir
+  `{date} {time} {num} {title} {count} {theme}`.
+- **Cadre, image en 9 parties :** `image`, `slice [gauche, haut, droite, bas]`, `inset` facultatif, `edges`
+  (`stretch` pour étirer, `tile` pour répéter un motif).
+- **Autocollants (ornaments) :** `[{image, anchor, size, offset [x, y], layer: "back"?}]`, petites images centrées
+  sur un point de la carte (coins, milieux des côtés, centre).
+- Les tailles en pixels sont prévues pour une capture de 1200 px et suivent la taille de la capture (de 0,5× à
+  2,5×). `"scale": 1` désactive cette mise à l'échelle, `"ref_size"` change la largeur de référence.
+
+Le cadre est ajouté aux copies et aux exports (PNG, PDF…) quand l'option « Ajouter le cadre du thème aux copies et
+exports » est cochée. L'écran d'édition montre l'image d'origine, et les PNG enregistrés automatiquement n'ont pas
+de cadre.
+
+**Vérifier un thème :** `python tools/check_themes.py chemin/du/theme`. **Partager :** Thèmes → Exporter en
+.zip… / Importer un .zip….
+
+**Publier (auteur du projet) :** déposez le dossier du thème dans [`themes/`](../themes) sur la branche `main`
+(sur GitHub : Add file → Upload files, glissez le dossier). « Thèmes en ligne » le propose aussitôt dans
+l'application, la CI le vérifie, et la prochaine version l'intègre à l'exe.
