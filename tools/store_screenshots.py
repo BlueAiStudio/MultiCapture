@@ -133,7 +133,7 @@ def run_scene(scene, theme, view, lang, out_png):
         app._new_obj("rect", box=[455, 105, 575, 505], color=red, width=4, fill=None),
         app._new_obj("arrow", p=[[260, 120], [440, 170]], color=red, width=5),
         app._new_obj("marker", x=600, y=110, n=1, color=red, size=26),
-        app._new_obj("text", x=120, y=60, text="Best quarter!", color=red, size=26, bold=True, bg="#FFFFFF",
+        app._new_obj("text", x=120, y=60, text="Best month!", color=red, size=26, bold=True, bg="#FFFFFF",
                      border=True),
     ]
     app.select_item(it)
