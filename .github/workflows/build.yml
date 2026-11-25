@@ -13,6 +13,12 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      # Code signing (Azure Artifact Signing). Until these are set in the repository settings,
+      # the signing step is skipped and the exe stays unsigned. See docs/CODE_SIGNING.md.
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v4
 
@@ -41,6 +47,26 @@ jobs:
       - name: Build exe
         run: powershell -ExecutionPolicy Bypass -File build.ps1
 
+      - name: Sign exe (only when code signing is set up)
+        if: env.AZURE_CLIENT_ID != '' && github.event_name != 'pull_request'
+        uses: azure/trusted-signing-action@v0.5.1
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ vars.SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ vars.SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.SIGNING_PROFILE }}
+          files-folder: ${{ github.workspace }}\dist
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Show signature
+        shell: pwsh
+        run: Get-AuthenticodeSignature dist\MultiCapture.exe | Format-List Status, StatusMessage, SignerCertificate
+
       - name: Smoke test (exe starts and stays up for 10 s)
         shell: pwsh
         run: |
@@ -65,6 +91,66 @@ jobs:
         with:
           name: MultiCapture-exe
           path: dist/MultiCapture.exe
+
+      - name: Build Microsoft Store package (MSIX)
+        run: powershell -ExecutionPolicy Bypass -File build_msix.ps1
+
+      - name: Test-install the MSIX and start it
+        # The Store signs the real package. Here a throw-away certificate is made only to
+        # install a copy on the build machine and check that the packaged app starts.
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $msix = Get-ChildItem dist\*.msix | Select-Object -First 1
+          $id = Get-Content -Raw packaging\msix\store.json | ConvertFrom-Json
+          $cert = New-SelfSignedCertificate -Type Custom -Subject $id.Publisher -KeyUsage DigitalSignature `
+            -FriendlyName "MultiCapture CI test" -CertStoreLocation Cert:\CurrentUser\My `
+            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+          $pw = ConvertTo-SecureString -String "ci-test" -Force -AsPlainText
+          Export-PfxCertificate -Cert $cert -FilePath "$env:TEMP\ci.pfx" -Password $pw | Out-Null
+          Import-PfxCertificate -FilePath "$env:TEMP\ci.pfx" -Password $pw -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null
+          $test = "$env:TEMP\MultiCapture-test.msix"
+          Copy-Item $msix.FullName $test
+          $kits = Join-Path ${env:ProgramFiles(x86)} "Windows Kits\10\bin"
+          $signtool = Get-ChildItem $kits -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match '\\x64\\' } |
+                      Sort-Object FullName | Select-Object -Last 1
+          & $signtool.FullName sign /fd SHA256 /f "$env:TEMP\ci.pfx" /p ci-test $test
+          if ($LASTEXITCODE -ne 0) { throw "signtool failed" }
+          Add-AppxPackage -Path $test
+          $pkg = Get-AppxPackage -Name $id.IdentityName
+          if (-not $pkg) { throw "package did not install" }
+          Write-Host "Installed $($pkg.PackageFullName)"
+          Start-Process "explorer.exe" "shell:AppsFolder\$($pkg.PackageFamilyName)!MultiCapture"
+          Start-Sleep -Seconds 12
+          $p = Get-Process MultiCapture -ErrorAction SilentlyContinue
+          if (-not $p) { throw "packaged app did not start (or exited early)" }
+          Write-Host "Packaged app is running: $($p.Path)"
+          $data = Join-Path $env:LOCALAPPDATA "Packages\$($pkg.PackageFamilyName)\LocalState"
+          Write-Host "Package data folder:"; Get-ChildItem -Recurse $data -ErrorAction SilentlyContinue | Select-Object -First 20 FullName
+          $p | Stop-Process -Force
+          Remove-AppxPackage $pkg.PackageFullName
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MultiCapture-msix-for-Store
+          path: dist/*.msix
+
+      - name: Store screenshots (1920 x 1080, en / zh / fr)
+        shell: powershell
+        run: |
+          try { Set-DisplayResolution -Width 1920 -Height 1080 -Force -ErrorAction Stop } catch { Write-Host "Could not change the screen size: $_" }
+          Add-Type -AssemblyName System.Windows.Forms
+          Write-Host "Screen: $([System.Windows.Forms.Screen]::PrimaryScreen.Bounds)"
+          python tools/store_screenshots.py
+          if ($LASTEXITCODE -ne 0) { throw "store_screenshots.py failed" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Store-screenshots
+          path: |
+            dist/store-screenshots/en
+            dist/store-screenshots/zh
+            dist/store-screenshots/fr
 
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/v')

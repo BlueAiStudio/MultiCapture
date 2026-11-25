@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.locale.1.6.0.schema.json
+PackageIdentifier: xieganglaoliu.MultiCapture
+PackageVersion: 1.4.0
+PackageLocale: fr-FR
+ShortDescription: Tableau multi-captures pour Windows - chaque capture est conservée, disposée en grille, annotée et copiée.
+Description: |-
+  L'Outil Capture d'écran intégré ne garde qu'une capture à la fois. MultiCapture les garde toutes dans un
+  panneau d'historique : comparez, disposez, annotez et collez plusieurs captures sans enregistrer de fichiers.
+  Raccourci global Ctrl+Alt+S, annotations modifiables, mesures, export PDF, thèmes, et en option OCR,
+  épinglage au premier plan, capture défilante et enregistrement GIF.
+Tags:
+- capture-ecran
+- annotation
+ManifestType: locale
+ManifestVersion: 1.6.0

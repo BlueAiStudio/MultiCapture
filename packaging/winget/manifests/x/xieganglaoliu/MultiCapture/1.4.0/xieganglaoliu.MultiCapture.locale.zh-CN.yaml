@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.locale.1.6.0.schema.json
+PackageIdentifier: xieganglaoliu.MultiCapture
+PackageVersion: 1.4.0
+PackageLocale: zh-CN
+ShortDescription: Windows 多截图白板：每张截图都保留，按网格排列、标注并自动复制。
+Description: |-
+  系统自带的截图工具一次只保留一张。MultiCapture 把所有截图都放在历史面板里，
+  不用存文件就能同时对比、排列、标注和粘贴多张截图。
+  全局快捷键 Ctrl+Alt+S，可再编辑的标注、测量、导出 PDF、主题，以及可选的文字识别、置顶贴图、滚动截图和 GIF 录制。
+Tags:
+- 截图
+- 截屏
+- 标注
+ManifestType: locale
+ManifestVersion: 1.6.0

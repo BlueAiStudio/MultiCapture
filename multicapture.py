@@ -75,7 +75,29 @@ user32 = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
 
 # --------------------------------------------------------------------------- paths
+def package_family_name():
+    """Family name when running as an MSIX package (Microsoft Store), else None."""
+    try:
+        n = ctypes.c_uint32(0)
+        kernel32.GetCurrentPackageFamilyName(ctypes.byref(n), None)   # asks for the length
+        if not n.value:
+            return None
+        buf = ctypes.create_unicode_buffer(n.value)
+        if kernel32.GetCurrentPackageFamilyName(ctypes.byref(n), buf) != 0:
+            return None
+        return buf.value or None
+    except Exception:
+        return None
+
+
+PACKAGE_FAMILY = package_family_name()
 _APPDATA_BASE = os.environ.get("APPDATA", os.path.expanduser("~"))
+if PACKAGE_FAMILY:
+    # Store version: Windows would silently redirect writes under %APPDATA% into the package,
+    # so "Open folder" in Explorer would show an empty folder. Use the package's own data folder
+    # directly instead, so the app and Explorer see the same files. Windows removes it on uninstall.
+    _APPDATA_BASE = os.path.join(os.environ.get("LOCALAPPDATA", os.path.expanduser("~")),
+                                 "Packages", PACKAGE_FAMILY, "LocalState")
 APPDATA = os.path.join(_APPDATA_BASE, "MultiCapture")
 _OLD_APPDATA = os.path.join(_APPDATA_BASE, "MultiCapture_HAO")   # folder name used up to v1.3.1
 if not os.path.exists(APPDATA) and os.path.isdir(_OLD_APPDATA):
