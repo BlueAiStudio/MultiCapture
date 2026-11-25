@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Board report** (Save menu → "Export board as a report (PDF / Word)…"): the screenshots of the current view with a title, the date, each screenshot's notes and measurements, and a measurement summary table. Saved as PDF (A4) or Word .docx. No new dependency: the .docx is written directly, so the exe and the Store package need nothing extra.
+- **Measurement table** (Save menu → "Copy board measurements as a table (Excel)"): every distance, area, perimeter, angle and scale reference on the board, copied as a table that pastes into Excel.
 - **Microsoft Store package**: `build_msix.ps1` builds an MSIX package (signed by the Store when published). In the Store version, settings and history live in the package's own data folder, so "Open folder" opens the right place. CI test-installs the package, checks that it starts, and makes the Store screenshots.
 - **Code signing** of `MultiCapture.exe` in CI with Azure Artifact Signing, switched on by adding the repository secrets (see `docs/CODE_SIGNING.md`).
 - winget manifests (`packaging/winget`), Store listing texts (`docs/STORE.md`) and a privacy policy (`PRIVACY.md`).

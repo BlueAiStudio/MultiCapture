@@ -20,6 +20,7 @@ import tkinter as tk  # noqa: E402
 from PIL import Image, ImageDraw  # noqa: E402
 
 import extras  # noqa: E402
+import report  # noqa: E402
 import multicapture as mc  # noqa: E402
 
 
@@ -92,6 +93,25 @@ for k, _ in mc.FEATURES:
 app._features_changed()
 assert not app.extra_bar.winfo_children(), "features off -> no extra buttons"
 print("switching features off OK")
+
+# board report: PDF, Word and the measurement table
+it = app.sel
+it["objs"].append({"id": "m1", "type": "dist", "color": "#DC2626", "width": 3, "fs": 14, "p": [[20, 100], [220, 100]]})
+it["objs"].append({"id": "m2", "type": "area", "color": "#2563EB", "width": 3, "fs": 14, "fill_alpha": 25,
+                   "pts": [[10, 10], [110, 10], [110, 60]]})
+it["notes"] = "报告测试 report test"
+it["_final"] = None
+rows = app.measure_rows(it)
+assert [r[0] for r in rows] == ["距离", "面积", "周长"], rows
+assert rows[0][1:3] == ("200", "px"), rows
+entries = app.report_entries([it])
+rp = os.path.join(os.environ["APPDATA"], "report.pdf")
+report.write_pdf(rp, report.pdf_pages("测试报告", entries, app.report_labels(), font=mc.frame_font))
+report.write_docx(rp[:-4] + ".docx", "测试报告", entries, app.report_labels())
+assert os.path.getsize(rp) > 1000 and os.path.getsize(rp[:-4] + ".docx") > 1000
+app.copy_measure_table()
+assert root.clipboard_get().splitlines()[0].split("\t") == list(app.table_header())
+print("board report OK")
 
 app._shutdown()
 print("ALL OK")
