@@ -15,7 +15,7 @@ MultiCapture  -  multi-screenshot board for Windows
 * Export PNG / JPG / BMP / PDF, all screenshots to PNG files or one PDF
 * Global hotkey Ctrl+Alt+S
 * Optional extras (off by default, Options -> Extra features): pin to screen, text recognition (OCR),
-  scrolling capture, screen recording to GIF - see extras.py
+  scrolling capture, screen recording to GIF / MP4 - see extras.py
 """
 import copy
 import ctypes
@@ -45,7 +45,7 @@ SCROLL_MODE = "Scrolling"          # extra capture mode, only offered when scrol
 ALL_MODES = MODE_KEYS + [SCROLL_MODE]
 # Optional features: settings key -> menu label. All are off until switched on in Options -> Extra features.
 FEATURES = [("feat_pin", "Pin to screen"), ("feat_ocr", "Text recognition (OCR)"),
-            ("feat_scroll", "Scrolling capture"), ("feat_record", "Screen recording (GIF)")]
+            ("feat_scroll", "Scrolling capture"), ("feat_record", "Screen recording (GIF / MP4)")]
 REC_FPS = [5, 10, 15]
 DELAY_KEYS = ["No delay", "3 s", "5 s", "10 s"]
 
@@ -207,7 +207,7 @@ DEFAULT_SETTINGS = {
     "ask_on_close": True, "last_dir": DEFAULT_SAVE_DIR, "close_fmt": "PNG", "close_what": "unsaved",
     "open_after_save": False, "theme": "default", "theme_frame": True,
     "feat_pin": False, "feat_ocr": False, "feat_scroll": False, "feat_record": False,
-    "ocr_lang": "", "rec_fps": 10,
+    "ocr_lang": "", "rec_fps": 10, "rec_format": "mp4",
 }
 
 # --------------------------------------------------------------------------- fonts
@@ -4278,7 +4278,7 @@ class App:
         txt = shortcuts_text()
         extra = [line for k, line in (("feat_pin", tr("Ctrl+P         pin screenshot to the screen")),
                                        ("feat_ocr", tr("Ctrl+T         extract text (OCR)")),
-                                       ("feat_record", tr("Ctrl+R         record screen to GIF  ·  Esc stop")))
+                                       ("feat_record", tr("Ctrl+R         record screen (GIF / MP4)  ·  Esc stop")))
                  if self.feat[k].get()]
         if extra:
             txt += "\n\n" + "\n".join(extra)
@@ -4301,7 +4301,7 @@ class App:
                          tr("Extract the text of the screenshot  (Ctrl+T)\nWindows OCR, works offline")))
         if self.feat["feat_record"].get():
             btns.append(("record", "⏺", tr("Record"), self.start_record,
-                         tr("Record part of the screen as an animated GIF  (Ctrl+R)\nEsc or Stop to finish")))
+                         tr("Record part of the screen as a GIF or MP4 video  (Ctrl+R)\nEsc or Stop to finish")))
         if btns:
             tk.Frame(self.extra_bar, bg=BORDER, width=1).pack(side="left", fill="y", padx=(12, 6), pady=10)
             for key, glyph, text, cmd, tip in btns:
@@ -4422,23 +4422,39 @@ class App:
             self.set_status(tr("Recording cancelled"))
             return
         folder = self.st.get("last_dir") or DEFAULT_SAVE_DIR
+        ffmpeg = extras.find_ffmpeg()
+        gif_t, mp4_t = (tr("GIF animation"), "*.gif"), (tr("MP4 video"), "*.mp4")
+        ext = self.st.get("rec_format", "mp4") if ffmpeg else "gif"
+        types = [mp4_t, gif_t] if ext == "mp4" else ([gif_t, mp4_t] if ffmpeg else [gif_t])
         p = filedialog.asksaveasfilename(
-            parent=self.root, title=tr("Save recording as"), defaultextension=".gif",
+            parent=self.root, title=tr("Save recording as"), defaultextension="." + ext,
             initialdir=folder if os.path.isdir(folder) else None,
-            initialfile=f"Recording_{datetime.now():%Y%m%d_%H%M%S}.gif", filetypes=[(tr("GIF animation"), "*.gif")])
+            initialfile=f"Recording_{datetime.now():%Y%m%d_%H%M%S}.{ext}", filetypes=types)
         if not p:
             self.set_status(tr("Recording discarded"))
             return
+        fmt = "mp4" if p.lower().endswith(".mp4") else "gif"
+        if fmt == "mp4" and not ffmpeg:
+            messagebox.showwarning(tr("MP4 video"), tr("MP4 needs ffmpeg, which was not found. The recording is saved as a GIF instead."),
+                                   parent=self.root)
+            p, fmt = os.path.splitext(p)[0] + ".gif", "gif"
         self.st["last_dir"] = os.path.dirname(p)
+        if ffmpeg:
+            self.st["rec_format"] = fmt
         note = tr("  ·  stopped at the length limit") if rec.limit_hit else ""
+        label = "MP4" if fmt == "mp4" else "GIF"
 
         def work():
             try:
-                extras.save_gif(rec, p, lambda pct: self.q.put(("gif_progress", pct)))
-                self.q.put(("gif_saved", p, None, note))
+                cb = lambda pct: self.q.put(("gif_progress", pct, label))
+                if fmt == "mp4":
+                    extras.save_mp4(rec, p, cb, ffmpeg)
+                else:
+                    extras.save_gif(rec, p, cb)
+                self.q.put(("gif_saved", p, None, note, label))
             except Exception as ex:
-                self.q.put(("gif_saved", p, str(ex), note))
-        self.set_status(tr("Saving GIF… {p}%", p=0))
+                self.q.put(("gif_saved", p, str(ex), note, label))
+        self.set_status(tr("Saving {f}… {p}%", f=label, p=0))
         threading.Thread(target=work, daemon=True).start()
 
     # ===================================================================== loop / exit
@@ -4459,15 +4475,15 @@ class App:
                     else:
                         self.set_status(tr("⚠ Clipboard busy - try Copy again"))
                 elif m[0] == "gif_progress":
-                    self.set_status(tr("Saving GIF… {p}%", p=m[1]))
+                    self.set_status(tr("Saving {f}… {p}%", f=m[2], p=m[1]))
                 elif m[0] == "gif_saved":
-                    _, p, err, note = m
+                    _, p, err, note, label = m
                     if err:
                         messagebox.showerror(tr("Save failed"), err, parent=self.root)
                         self.set_status(tr("Save failed"))
                     else:
-                        self.set_status(tr("GIF saved: {p}", p=p) + note)
-                        self.flash_msg(tr("✓ GIF saved"))
+                        self.set_status(tr("{f} saved: {p}", f=label, p=p) + note)
+                        self.flash_msg(tr("✓ {f} saved", f=label))
         except queue.Empty:
             pass
         self._poll_job = self.root.after(80, self._poll)

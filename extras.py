@@ -6,16 +6,19 @@ Options -> Extra features:
 * Pin to screen   - a screenshot floats above all windows (move, zoom, opacity)
 * Text recognition (OCR) - uses the OCR engine built into Windows 10/11 (offline, no download)
 * Scrolling capture - captures a region while it scrolls and stitches the frames into one image
-* Screen recording - records a region of the screen to an animated GIF
+* Screen recording - records a region of the screen to an animated GIF or an MP4 video
 
-Nothing here adds a dependency: only Pillow, Tkinter, ctypes and the Windows PowerShell that
-ships with Windows (for the OCR bridge). The stitching code is pure Python so it can be tested
+Nothing here adds a required dependency: only Pillow, Tkinter, ctypes and the Windows PowerShell
+that ships with Windows (for the OCR bridge). MP4 needs an ffmpeg program: the one bundled by the
+optional imageio-ffmpeg package (included in the .exe build), one next to the app, or one on PATH.
+Without it, recordings can still be saved as GIF. The stitching code is pure Python so it can be tested
 on any platform.
 """
 import base64
 import ctypes
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -756,15 +759,16 @@ class ScrollCapture:
         self.on_done(None, None)
 
 
-# =========================================================================== SCREEN RECORDING (GIF)
+# =========================================================================== SCREEN RECORDING (GIF / MP4)
 REC_MAX_SECONDS = 60
 REC_MAX_SIDE = 1280
 REC_PIXEL_BUDGET = 300_000_000   # frames x pixels kept in memory (about 300 MB while saving the GIF)
 
 
 class Recording:
-    def __init__(self, size):
+    def __init__(self, size, fps=10):
         self.size = size
+        self.fps = fps
         self.frames = []     # zlib-compressed RGB bytes, consecutive duplicates removed
         self.times = []      # start time of each frame (s)
         self.end = 0.0
@@ -793,6 +797,69 @@ def save_gif(rec, path, progress=None):
     first.save(path, save_all=True, append_images=rest(), duration=durs, loop=0, optimize=False)
 
 
+def find_ffmpeg():
+    """Path of an ffmpeg program for MP4 export, or None."""
+    here = os.path.dirname(os.path.abspath(sys.executable if getattr(sys, "frozen", False) else __file__))
+    for name in ("ffmpeg.exe", "ffmpeg"):
+        p = os.path.join(here, name)
+        if os.path.isfile(p):
+            return p
+    try:
+        import imageio_ffmpeg
+        p = imageio_ffmpeg.get_ffmpeg_exe()
+        if p and os.path.isfile(p):
+            return p
+    except Exception:
+        pass
+    return shutil.which("ffmpeg")
+
+
+def frame_repeats(rec):
+    """How many times each kept frame is written to get a constant-rate video at rec.fps."""
+    fps = max(1, rec.fps)
+    ts = rec.times + [max(rec.end, (rec.times[-1] if rec.times else 0) + 1.0 / fps)]
+    out, done = [], 0
+    for i in range(len(rec.frames)):
+        upto = max(done + 1, int(round(ts[i + 1] * fps)))
+        out.append(upto - done)
+        done = upto
+    return out
+
+
+def save_mp4(rec, path, progress=None, ffmpeg=None):
+    """Encode the recording as H.264 MP4 by piping raw frames to ffmpeg."""
+    ffmpeg = ffmpeg or find_ffmpeg()
+    if not ffmpeg:
+        raise RuntimeError("ffmpeg not found")
+    w, h = rec.size
+    cmd = [ffmpeg, "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
+           "-s", f"{w}x{h}", "-r", str(max(1, rec.fps)), "-i", "-",
+           "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2", "-c:v", "libx264", "-preset", "veryfast",
+           "-crf", "23", "-pix_fmt", "yuv420p", "-movflags", "+faststart", path]
+    flags = 0x08000000 if IS_WIN else 0          # CREATE_NO_WINDOW
+    errf = tempfile.TemporaryFile()
+    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=errf,
+                            creationflags=flags)
+    n = len(rec.frames)
+    try:
+        for i, (data, rep) in enumerate(zip(rec.frames, frame_repeats(rec)), 1):
+            raw = zlib.decompress(data)
+            for _ in range(rep):
+                proc.stdin.write(raw)
+            if progress:
+                progress(int(i * 100 / n))
+        proc.stdin.close()
+    except (BrokenPipeError, OSError):
+        pass
+    code = proc.wait()
+    if code != 0:
+        errf.seek(0)
+        msg = errf.read().decode("utf-8", "replace").strip()
+        errf.close()
+        raise RuntimeError(msg or f"ffmpeg exited with code {code}")
+    errf.close()
+
+
 class GifRecorder:
     def __init__(self, master, box, on_done, fps=10, k=1.0):
         self.master, self.box, self.on_done = master, box, on_done
@@ -801,7 +868,7 @@ class GifRecorder:
         l, t, r, b = box
         w, h = r - l, b - t
         self.scale = min(1.0, REC_MAX_SIDE / max(w, h))
-        self.rec = Recording((max(1, int(w * self.scale)), max(1, int(h * self.scale))))
+        self.rec = Recording((max(1, int(w * self.scale)), max(1, int(h * self.scale))), self.fps)
         self.stop_ev = threading.Event()
         self.cancelled = False
         self.closed = False

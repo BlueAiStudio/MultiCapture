@@ -83,6 +83,11 @@ path = os.path.join(os.environ["APPDATA"], "test.gif")
 extras.save_gif(r, path)
 with Image.open(path) as g:
     print("recording OK", g.size, g.n_frames, "frames")
+assert extras.find_ffmpeg(), "ffmpeg (imageio-ffmpeg) not found"
+path = os.path.join(os.environ["APPDATA"], "test.mp4")
+extras.save_mp4(r, path)
+assert os.path.getsize(path) > 500
+print("MP4 OK", os.path.getsize(path), "bytes")
 
 app.feat["feat_scroll"].set(False)
 app._features_changed()

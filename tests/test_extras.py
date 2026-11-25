@@ -1,4 +1,4 @@
-"""Platform-independent tests for the optional features (stitching, OCR text tidy-up, GIF writing)."""
+"""Platform-independent tests for the optional features (stitching, OCR text tidy-up, GIF / MP4 writing)."""
 import os
 import random
 import sys
@@ -118,6 +118,34 @@ class GifTest(unittest.TestCase):
         with Image.open(p) as g:
             self.assertEqual(g.n_frames, 5)
             self.assertEqual(g.size, (60, 40))
+
+
+def _rec(n=5, size=(61, 41), fps=10):
+    import zlib
+    rec = extras.Recording(size, fps)
+    for i in range(n):
+        rec.frames.append(zlib.compress(Image.new("RGB", size, (i * 40, 0, 0)).tobytes(), 1))
+        rec.times.append(i * 0.1)
+    rec.end = n * 0.1
+    return rec
+
+
+class Mp4Test(unittest.TestCase):
+    def test_repeats(self):
+        rec = _rec(3)
+        rec.times = [0.0, 0.5, 0.6]   # duplicates removed: first frame stayed on screen 0.5 s
+        rec.end = 1.0
+        self.assertEqual(extras.frame_repeats(rec), [5, 1, 4])
+        self.assertEqual(sum(extras.frame_repeats(_rec(7))), 7)
+
+    @unittest.skipUnless(extras.find_ffmpeg(), "ffmpeg not available")
+    def test_save(self):
+        p = os.path.join(tempfile.mkdtemp(), "t.mp4")
+        extras.save_mp4(_rec(), p)          # odd size is padded to even for H.264
+        with open(p, "rb") as f:
+            head = f.read(12)
+        self.assertEqual(head[4:8], b"ftyp")
+        self.assertGreater(os.path.getsize(p), 500)
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ python -m PyInstaller --noconfirm --clean --onefile --windowed `
     --add-data "$src\multicapture.ico;." `
     --add-data "$src\multicapture.png;." `
     --add-data "$src\themes;themes" `
+    --collect-data imageio_ffmpeg `
     --exclude-module numpy --exclude-module pandas --exclude-module matplotlib `
     --exclude-module scipy --exclude-module PyQt5 --exclude-module PySide6 --exclude-module IPython `
     --distpath "$dist" --workpath "$env:TEMP\MultiCapture_build" --specpath "$env:TEMP\MultiCapture_build" `
