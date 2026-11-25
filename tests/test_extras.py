@@ -1,6 +1,7 @@
 """Platform-independent tests for the optional features (stitching, OCR text tidy-up, GIF / MP4 writing)."""
 import os
 import random
+import shutil
 import sys
 import tempfile
 import unittest
@@ -120,32 +121,86 @@ class GifTest(unittest.TestCase):
             self.assertEqual(g.size, (60, 40))
 
 
-def _rec(n=5, size=(61, 41), fps=10):
-    import zlib
-    rec = extras.Recording(size, fps)
-    for i in range(n):
-        rec.frames.append(zlib.compress(Image.new("RGB", size, (i * 40, 0, 0)).tobytes(), 1))
-        rec.times.append(i * 0.1)
-    rec.end = n * 0.1
-    return rec
+class AudioWriterTest(unittest.TestCase):
+    def _frames(self, path):
+        import wave
+        with wave.open(path) as w:
+            return w.getnframes(), w.readframes(w.getnframes())
+
+    def test_gaps(self):
+        p = os.path.join(tempfile.mkdtemp(), "a.wav")
+        w = extras.AudioWriter(p, 1000, 1, fill_gaps=True)
+        chunk = b"\x01\x00" * 100                 # 0.1 s
+        w.add(chunk, 0.3)                          # first chunk arrives late: 0.2 s of silence first
+        w.add(chunk, 0.4)
+        w.add(chunk, 1.0)                          # 0.5 s with no data (nothing playing)
+        w.close(1.5)
+        n, data = self._frames(p)
+        self.assertEqual(n, 1500)
+        self.assertEqual(data[:400], b"\0" * 400)
+        self.assertEqual(data[400:800], chunk * 2)
+        self.assertEqual(data[800:1800], b"\0" * 1000)
+
+    def test_mic_no_gap_fill(self):
+        p = os.path.join(tempfile.mkdtemp(), "m.wav")
+        w = extras.AudioWriter(p, 1000, 2, fill_gaps=False)
+        chunk = b"\x01\x00\x02\x00" * 100
+        w.add(chunk, 0.1)
+        w.add(chunk, 0.5)                          # a late chunk is not padded for a microphone
+        w.close(0.1)                               # never cut short
+        self.assertEqual(self._frames(p)[0], 200)
 
 
-class Mp4Test(unittest.TestCase):
-    def test_repeats(self):
-        rec = _rec(3)
-        rec.times = [0.0, 0.5, 0.6]   # duplicates removed: first frame stayed on screen 0.5 s
-        rec.end = 1.0
-        self.assertEqual(extras.frame_repeats(rec), [5, 1, 4])
-        self.assertEqual(sum(extras.frame_repeats(_rec(7))), 7)
+@unittest.skipUnless(extras.find_ffmpeg(), "ffmpeg not available")
+class VideoTest(unittest.TestCase):
+    def _take(self, n=30, size=(61, 41), fps=10, audio=0):
+        import subprocess
+        import wave
+        folder = tempfile.mkdtemp()
+        video = os.path.join(folder, "video.mp4")
+        proc = subprocess.Popen(extras.video_cmd(extras.find_ffmpeg(), size, fps, video), stdin=subprocess.PIPE)
+        for i in range(n):
+            proc.stdin.write(Image.new("RGB", size, (i * 8, 0, 0)).tobytes())
+        proc.stdin.close()
+        self.assertEqual(proc.wait(), 0)
+        tracks = []
+        for k in range(audio):
+            p = os.path.join(folder, f"{k}.wav")
+            with wave.open(p, "wb") as w:
+                w.setnchannels(2 if k else 1)
+                w.setsampwidth(2)
+                w.setframerate(48000 if k else 44100)
+                w.writeframes(b"\x10\x00" * (2 if k else 1) * (44100 * n // fps))
+            tracks.append(p)
+        return extras.VideoTake(folder, video, tracks, n / fps, [])
 
-    @unittest.skipUnless(extras.find_ffmpeg(), "ffmpeg not available")
-    def test_save(self):
-        p = os.path.join(tempfile.mkdtemp(), "t.mp4")
-        extras.save_mp4(_rec(), p)          # odd size is padded to even for H.264
-        with open(p, "rb") as f:
-            head = f.read(12)
-        self.assertEqual(head[4:8], b"ftyp")
-        self.assertGreater(os.path.getsize(p), 500)
+    def _probe(self, p):
+        import subprocess
+        ffprobe = shutil.which("ffprobe")
+        if not ffprobe:
+            return None
+        return subprocess.run([ffprobe, "-v", "error", "-show_entries", "stream=codec_name", "-of", "csv=p=0", p],
+                              capture_output=True, text=True).stdout.split()
+
+    def _check(self, audio):
+        take = self._take(audio=audio)
+        out = os.path.join(tempfile.mkdtemp(), "out.mp4")
+        extras.save_video(take, out)
+        self.assertFalse(os.path.exists(take.folder))           # temporary files removed
+        with open(out, "rb") as f:
+            self.assertEqual(f.read(8)[4:], b"ftyp")
+        codecs = self._probe(out)
+        if codecs is not None:
+            self.assertEqual(codecs, ["h264"] + (["aac"] if audio else []))
+
+    def test_silent(self):
+        self._check(0)
+
+    def test_one_track(self):
+        self._check(1)
+
+    def test_two_tracks_mixed(self):
+        self._check(2)
 
 
 if __name__ == "__main__":

@@ -35,7 +35,7 @@ Switch each one on in **Options → Extra features**. While a feature is off it 
 - **Pin to screen** (`Ctrl+P`): float a screenshot above all windows. Drag to move, wheel to zoom, Ctrl+wheel for opacity.
 - **Text recognition (OCR)** (`Ctrl+T`): extract the text of a screenshot with the OCR engine built into Windows 10/11, offline. Supports every language Windows has OCR for (Chinese, English, French, …).
 - **Scrolling capture**: a "Scrolling" capture mode that auto-scrolls a window and stitches it into one long image.
-- **Screen recording to MP4 or GIF** (`Ctrl+R`): record a region or the full screen to an MP4 video or an animated GIF (5 / 10 / 15 fps, up to 60 s). MP4 uses ffmpeg (bundled in the .exe; from source: `pip install imageio-ffmpeg`).
+- **Screen recording to MP4 or GIF** (`Ctrl+R`): record a region or the full screen to an MP4 video (no length limit, optional microphone and/or system sound) or an animated GIF (up to 60 s), at 5 / 10 / 15 fps. MP4 and sound are bundled in the .exe; from source: `pip install imageio-ffmpeg pyaudiowpatch`.
 
 ### Download
 
@@ -103,7 +103,7 @@ Session data is stored in `%APPDATA%\MultiCapture\`.
 - **贴图置顶**（`Ctrl+P`）：把截图钉在所有窗口最上层，可拖动、缩放、调透明度；
 - **文字识别 OCR**（`Ctrl+T`）：使用 Windows 10/11 自带的 OCR 引擎识别截图中的文字，支持中文、英文等；
 - **长截图 / 滚动截图**：截图模式中多出「长截图」，自动滚动窗口并拼接成一张长图；
-- **录屏 MP4 / GIF**（`Ctrl+R`）：把屏幕区域或全屏录成 MP4 视频或 GIF 动图（每秒 5 / 10 / 15 帧，最长 60 秒）。MP4 用 ffmpeg（.exe 已自带；源码运行需 `pip install imageio-ffmpeg`）。
+- **录屏 MP4 / GIF**（`Ctrl+R`）：把屏幕区域或全屏录成 MP4 视频（不限时长，可录麦克风和/或系统声音）或 GIF 动图（最长 60 秒），每秒 5 / 10 / 15 帧。.exe 已自带 MP4 和录音；源码运行需 `pip install imageio-ffmpeg pyaudiowpatch`。
 
 下载：在 [Releases](https://github.com/xieganglaoliu/MultiCapture/releases/latest) 页面下载 `MultiCapture.exe`，免安装、不需要 Python。
 

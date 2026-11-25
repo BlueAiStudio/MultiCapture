@@ -207,7 +207,7 @@ DEFAULT_SETTINGS = {
     "ask_on_close": True, "last_dir": DEFAULT_SAVE_DIR, "close_fmt": "PNG", "close_what": "unsaved",
     "open_after_save": False, "theme": "default", "theme_frame": True,
     "feat_pin": False, "feat_ocr": False, "feat_scroll": False, "feat_record": False,
-    "ocr_lang": "", "rec_fps": 10, "rec_format": "mp4",
+    "ocr_lang": "", "rec_fps": 10, "rec_format": "mp4", "rec_mic": False, "rec_system": False,
 }
 
 # --------------------------------------------------------------------------- fonts
@@ -4018,6 +4018,22 @@ class App:
                 rm.add_radiobutton(label=tr("{n} frames / s", n=f), value=f, variable=self._fps_var,
                                    command=lambda: (self.st.update(rec_fps=self._fps_var.get()), save_settings(self.st)))
             fm.add_cascade(label=tr("Recording frame rate"), menu=rm)
+            has_mp4, has_audio = extras.find_ffmpeg() is not None, extras.audio_available()
+            fmm = tk.Menu(fm, tearoff=0, font=UI)
+            self._recfmt_var = tk.StringVar(value=self.st.get("rec_format", "mp4") if has_mp4 else "gif")
+            save_fmt = lambda: (self.st.update(rec_format=self._recfmt_var.get()), save_settings(self.st))
+            fmm.add_radiobutton(label=tr("MP4 video (no length limit, sound)") if has_mp4 else tr("MP4 video (needs ffmpeg)"),
+                                value="mp4", variable=self._recfmt_var, command=save_fmt,
+                                state="normal" if has_mp4 else "disabled")
+            fmm.add_radiobutton(label=tr("GIF animation (up to 60 s)"), value="gif", variable=self._recfmt_var, command=save_fmt)
+            fm.add_cascade(label=tr("Recording format"), menu=fmm)
+            snd = "normal" if has_mp4 and has_audio and self._recfmt_var.get() == "mp4" else "disabled"
+            for key, label in (("rec_mic", "Record microphone"), ("rec_system", "Record system sound")):
+                var = tk.BooleanVar(value=bool(self.st.get(key, False)))
+                setattr(self, "_" + key + "_var", var)
+                fm.add_checkbutton(label=tr(label) + ("" if has_audio else "  " + tr("(needs PyAudioWPatch)")),
+                                   variable=var, state=snd,
+                                   command=lambda k=key, v=var: (self.st.update({k: v.get()}), save_settings(self.st)))
         m.add_cascade(label=tr("Extra features"), menu=fm)
         m.add_separator()
         lm = tk.Menu(m, tearoff=0, font=UI)
@@ -4412,7 +4428,18 @@ class App:
             return
         vx, vy, _, _ = virtual_screen()
         absbox = (box[0] + vx, box[1] + vy, box[2] + vx, box[3] + vy)
-        extras.GifRecorder(self.root, absbox, self._record_done, fps=self.st.get("rec_fps", 10), k=self.k)
+        fps = self.st.get("rec_fps", 10)
+        ffmpeg = extras.find_ffmpeg() if self.st.get("rec_format", "mp4") == "mp4" else None
+        if ffmpeg:
+            audio = extras.audio_available()
+            try:
+                extras.VideoRecorder(self.root, absbox, self._record_done, fps=fps, k=self.k, ffmpeg=ffmpeg,
+                                     mic=audio and self.st.get("rec_mic", False),
+                                     system=audio and self.st.get("rec_system", False))
+                return
+            except Exception as ex:
+                self.set_status(tr("MP4 recording failed ({e}) - recording a GIF instead", e=ex))
+        extras.GifRecorder(self.root, absbox, self._record_done, fps=fps, k=self.k)
 
     def _record_done(self, rec):
         self.busy = False
@@ -4422,39 +4449,38 @@ class App:
             self.set_status(tr("Recording cancelled"))
             return
         folder = self.st.get("last_dir") or DEFAULT_SAVE_DIR
-        ffmpeg = extras.find_ffmpeg()
-        gif_t, mp4_t = (tr("GIF animation"), "*.gif"), (tr("MP4 video"), "*.mp4")
-        ext = self.st.get("rec_format", "mp4") if ffmpeg else "gif"
-        types = [mp4_t, gif_t] if ext == "mp4" else ([gif_t, mp4_t] if ffmpeg else [gif_t])
+        video = isinstance(rec, extras.VideoTake)
+        ext, label = ("mp4", "MP4") if video else ("gif", "GIF")
         p = filedialog.asksaveasfilename(
             parent=self.root, title=tr("Save recording as"), defaultextension="." + ext,
             initialdir=folder if os.path.isdir(folder) else None,
-            initialfile=f"Recording_{datetime.now():%Y%m%d_%H%M%S}.{ext}", filetypes=types)
+            initialfile=f"Recording_{datetime.now():%Y%m%d_%H%M%S}.{ext}",
+            filetypes=[(tr("MP4 video"), "*.mp4")] if video else [(tr("GIF animation"), "*.gif")])
         if not p:
+            if video:
+                rec.discard()
             self.set_status(tr("Recording discarded"))
             return
-        fmt = "mp4" if p.lower().endswith(".mp4") else "gif"
-        if fmt == "mp4" and not ffmpeg:
-            messagebox.showwarning(tr("MP4 video"), tr("MP4 needs ffmpeg, which was not found. The recording is saved as a GIF instead."),
-                                   parent=self.root)
-            p, fmt = os.path.splitext(p)[0] + ".gif", "gif"
+        if not p.lower().endswith("." + ext):
+            p += "." + ext
         self.st["last_dir"] = os.path.dirname(p)
-        if ffmpeg:
-            self.st["rec_format"] = fmt
         note = tr("  ·  stopped at the length limit") if rec.limit_hit else ""
-        label = "MP4" if fmt == "mp4" else "GIF"
+        if video and rec.notes:
+            note += "  ·  " + "  ·  ".join(rec.notes)
 
         def work():
             try:
-                cb = lambda pct: self.q.put(("gif_progress", pct, label))
-                if fmt == "mp4":
-                    extras.save_mp4(rec, p, cb, ffmpeg)
+                if video:
+                    if getattr(rec, "error", None):
+                        rec.discard()
+                        raise RuntimeError(rec.error)
+                    extras.save_video(rec, p)
                 else:
-                    extras.save_gif(rec, p, cb)
+                    extras.save_gif(rec, p, lambda pct: self.q.put(("gif_progress", pct, label)))
                 self.q.put(("gif_saved", p, None, note, label))
             except Exception as ex:
                 self.q.put(("gif_saved", p, str(ex), note, label))
-        self.set_status(tr("Saving {f}… {p}%", f=label, p=0))
+        self.set_status(tr("Saving {f}… {p}%", f=label, p=0) if not video else tr("Saving {f}…", f=label))
         threading.Thread(target=work, daemon=True).start()
 
     # ===================================================================== loop / exit

@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- **Screen recording to MP4**: after a recording, the save dialog offers MP4 video (H.264, much smaller than GIF and plays everywhere) as well as GIF; the last choice is remembered. MP4 uses ffmpeg from the optional `imageio-ffmpeg` package, which the .exe and the Store package now include. Without ffmpeg, recordings are saved as GIF.
+- **Screen recording to MP4 with sound**: new Options → Extra features → Recording format (MP4 video by default, or GIF). MP4 is encoded while recording, so there is no length limit and memory use stays flat. MP4 can also record the microphone and/or the system sound (WASAPI loopback), each switched on separately in the same menu. MP4 uses ffmpeg from the optional `imageio-ffmpeg` package and sound uses the optional `PyAudioWPatch` package; the .exe and the Store package include both. Without them, recordings are GIF / silent. GIF recordings keep the 60 s limit.
 - **Microsoft Store package**: `build_msix.ps1` builds an MSIX package (signed by the Store when published). In the Store version, settings and history live in the package's own data folder, so "Open folder" opens the right place. CI test-installs the package, checks that it starts, and makes the Store screenshots.
 - **Code signing** of `MultiCapture.exe` in CI with Azure Artifact Signing, switched on by adding the repository secrets (see `docs/CODE_SIGNING.md`).
 - winget manifests (`packaging/winget`), Store listing texts (`docs/STORE.md`) and a privacy policy (`PRIVACY.md`).

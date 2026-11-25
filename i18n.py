@@ -471,8 +471,19 @@ TR = {
     "Save recording as": ("Enregistrer la vidéo sous", "录屏另存为"),
     "GIF animation": ("Animation GIF", "GIF 动图"),
     "MP4 video": ("Vidéo MP4", "MP4 视频"),
-    "MP4 needs ffmpeg, which was not found. The recording is saved as a GIF instead.":
-        ("Le MP4 nécessite ffmpeg, introuvable. L'enregistrement est sauvegardé en GIF.", "保存 MP4 需要 ffmpeg，但没有找到。录屏将改为保存成 GIF。"),
+    "Saving {f}…": ("Enregistrement du {f}…", "正在保存 {f}…"),
+    "MP4 recording failed ({e}) - recording a GIF instead": ("L'enregistrement MP4 a échoué ({e}) - enregistrement en GIF",
+                                                             "MP4 录制失败（{e}），改为录 GIF"),
+    "microphone": ("micro", "麦克风"),
+    "system sound": ("son du système", "系统声音"),
+    "no {what} recorded (device not available)": ("pas de {what} enregistré (appareil indisponible)", "没有录到{what}（设备不可用）"),
+    "Recording format": ("Format d'enregistrement", "录屏格式"),
+    "MP4 video (no length limit, sound)": ("Vidéo MP4 (sans limite de durée, avec son)", "MP4 视频（不限时长，可录声音）"),
+    "MP4 video (needs ffmpeg)": ("Vidéo MP4 (nécessite ffmpeg)", "MP4 视频（需要 ffmpeg）"),
+    "GIF animation (up to 60 s)": ("Animation GIF (60 s max.)", "GIF 动图（最长 60 秒）"),
+    "Record microphone": ("Enregistrer le micro", "录制麦克风"),
+    "Record system sound": ("Enregistrer le son du système", "录制系统声音"),
+    "(needs PyAudioWPatch)": ("(nécessite PyAudioWPatch)", "（需要 PyAudioWPatch）"),
     "Saving {f}… {p}%": ("Enregistrement du {f}… {p} %", "正在保存 {f}… {p}%"),
     "{f} saved: {p}": ("{f} enregistré : {p}", "{f} 已保存：{p}"),
     "✓ {f} saved": ("✓ {f} enregistré", "✓ {f} 已保存"),
@@ -580,7 +591,7 @@ Options → Extra features switches each of these on or off. While a feature is 
 - Pin to screen: the 📌 Pin button (or Ctrl+P, or right-click a history card) floats the screenshot above all windows. Drag to move, wheel to zoom, Ctrl+wheel to change opacity, double-click or Esc to close, right-click for Copy / Save / Close all.
 - Text recognition (OCR): the 🔤 Text button (or Ctrl+T) reads the text of the screenshot with the OCR engine built into Windows 10/11. It works offline. The text is copied to the clipboard and can be edited in the window. Pick the language in the window; Windows only offers the languages installed with "Optical character recognition" (Settings → Time & language → Language & region).
 - Scrolling capture: adds "Scrolling" to the capture mode list. Drag a rectangle over the part of the window that scrolls. It then scrolls down by itself and joins the frames into one long image. Click Pause to scroll by hand instead (slowly), and Done or Esc to finish. It stops by itself at the end of the page.
-- Screen recording (GIF / MP4): the ⏺ Record button (or Ctrl+R) records a rectangle (or the full screen in Full screen mode). Esc or Stop ends it, then you choose where to save and pick the format: MP4 video (small files, plays everywhere) or animated GIF. MP4 uses ffmpeg, which is included in the .exe; when running from source, install it with pip install imageio-ffmpeg. The frame rate (5, 10 or 15 per second) is in Options → Extra features. A recording stops by itself after 60 s.
+- Screen recording (GIF / MP4): the ⏺ Record button (or Ctrl+R) records a rectangle (or the full screen in Full screen mode). Esc or Stop ends it, then you choose where to save. Options → Extra features → Recording format: MP4 video (default: small files, no length limit, can record the microphone and/or the system sound - switch them on in the same menu) or animated GIF (no sound, up to 60 s). MP4 and sound are included in the .exe; when running from source, install them with pip install imageio-ffmpeg pyaudiowpatch. The frame rate (5, 10 or 15 per second) is in Options → Extra features.
 > The control bar and the coloured frame around the region are not part of the capture or the recording.
 
 # 12. Themes
@@ -658,7 +669,7 @@ Options → Fonctions supplémentaires active ou désactive chacune d'elles. Une
 - Épingler à l'écran : le bouton 📌 Épingler (ou Ctrl+P, ou clic droit sur une carte de l'historique) fait flotter la capture au-dessus de toutes les fenêtres. Glisser = déplacer, molette = zoom, Ctrl+molette = opacité, double-clic ou Échap = fermer, clic droit = Copier / Enregistrer / Tout fermer.
 - Reconnaissance de texte (OCR) : le bouton 🔤 Texte (ou Ctrl+T) lit le texte de la capture avec le moteur OCR intégré à Windows 10/11, hors ligne. Le texte est copié dans le presse-papiers et reste modifiable dans la fenêtre. Choisissez la langue dans la fenêtre ; Windows ne propose que les langues installées avec « Reconnaissance optique de caractères » (Paramètres → Heure et langue → Langue et région).
 - Capture défilante : ajoute « Défilante » aux modes de capture. Tracez un rectangle sur la partie de la fenêtre qui défile. La page défile ensuite toute seule et les images sont assemblées en une longue capture. Cliquez Pause pour faire défiler à la main (lentement), puis Terminé ou Échap. Elle s'arrête seule en bas de la page.
-- Enregistrement d'écran (GIF / MP4) : le bouton ⏺ Filmer (ou Ctrl+R) enregistre un rectangle (ou tout l'écran en mode Plein écran). Échap ou Arrêter pour terminer, puis choisissez où l'enregistrer et le format : vidéo MP4 (fichiers légers, lisibles partout) ou GIF animé. Le MP4 utilise ffmpeg, inclus dans le .exe ; depuis le code source, installez-le avec pip install imageio-ffmpeg. La cadence (5, 10 ou 15 images/s) se règle dans Options → Fonctions supplémentaires. L'enregistrement s'arrête seul après 60 s.
+- Enregistrement d'écran (GIF / MP4) : le bouton ⏺ Filmer (ou Ctrl+R) enregistre un rectangle (ou tout l'écran en mode Plein écran). Échap ou Arrêter pour terminer, puis choisissez où l'enregistrer. Options → Fonctions supplémentaires → Format d'enregistrement : vidéo MP4 (par défaut : fichiers légers, sans limite de durée, avec le micro et/ou le son du système - à activer dans le même menu) ou GIF animé (sans son, 60 s max.). Le MP4 et le son sont inclus dans le .exe ; depuis le code source, installez-les avec pip install imageio-ffmpeg pyaudiowpatch. La cadence (5, 10 ou 15 images/s) se règle dans Options → Fonctions supplémentaires.
 > La barre de commande et le cadre coloré autour de la zone ne figurent pas dans la capture ni dans la vidéo.
 
 # 12. Thèmes
@@ -736,7 +747,7 @@ MultiCapture 会保留你截的每一张图。可以把多张截图放在同一�
 - 贴图置顶：点「📌 贴图」（或 Ctrl+P，或在历史记录卡片上右键），截图会钉在所有窗口的最上层。拖动移动，滚轮缩放，Ctrl+滚轮调透明度，双击或 Esc 关闭，右键可复制 / 保存 / 关闭所有贴图。
 - 文字识别 (OCR)：点「🔤 识字」（或 Ctrl+T），用 Windows 10/11 自带的 OCR 引擎识别截图里的文字，完全离线。识别结果会自动复制到剪贴板，也可以在窗口里修改。可在窗口里选择语言；Windows 只提供已安装「光学字符识别」的语言（设置 → 时间和语言 → 语言和区域）。
 - 长截图 / 滚动截图：截图模式里会多出「长截图」。在需要滚动的窗口区域拖出一个矩形，软件会自动向下滚动，并把每一屏拼接成一张长图。点「暂停」可改为自己慢慢滚动，点「完成」或按 Esc 结束。滚到页面底部时会自动结束。
-- 录屏 (GIF / MP4)：点「⏺ 录屏」（或 Ctrl+R），录制一个矩形区域（「全屏」模式下录制整个屏幕）。按 Esc 或「停止」结束，然后选择保存位置和格式：MP4 视频（文件小，到处都能播放）或 GIF 动图。MP4 使用 ffmpeg，.exe 里已自带；从源码运行时请用 pip install imageio-ffmpeg 安装。帧率（每秒 5、10 或 15 帧）在「选项」→「扩展功能」里设置。录制 60 秒后会自动停止。
+- 录屏 (GIF / MP4)：点「⏺ 录屏」（或 Ctrl+R），录制一个矩形区域（「全屏」模式下录制整个屏幕）。按 Esc 或「停止」结束，然后选择保存位置。「选项」→「扩展功能」→「录屏格式」：MP4 视频（默认：文件小，不限时长，可以同时录麦克风和/或系统声音，在同一个菜单里打开）或 GIF 动图（没有声音，最长 60 秒）。.exe 已自带 MP4 和录音功能；从源码运行时请用 pip install imageio-ffmpeg pyaudiowpatch 安装。帧率（每秒 5、10 或 15 帧）在「选项」→「扩展功能」里设置。
 > 控制条和区域外的彩色边框不会被截进图片或录进视频。
 
 # 12. 主题
