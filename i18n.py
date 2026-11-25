@@ -323,6 +323,70 @@ TR = {
         "R 矩形 · E 椭圆 · T 文字 · C 标注框 · N 编号\n"
         "S 符号 · B 马赛克 · D 距离 · M 周长 · G 面积\n"
         "Q 角度 · K 校准比例"),
+    # ---------------------------------------------------------------- optional extra features
+    "Extra features": ("Fonctions supplémentaires", "扩展功能"),
+    "Pin to screen": ("Épingler à l'écran", "贴图置顶"),
+    "Text recognition (OCR)": ("Reconnaissance de texte (OCR)", "文字识别 (OCR)"),
+    "Scrolling capture": ("Capture défilante", "长截图 / 滚动截图"),
+    "Screen recording (GIF)": ("Enregistrement d'écran (GIF)", "录屏 (GIF)"),
+    "Scrolling": ("Défilante", "长截图"),
+    "Pin": ("Épingler", "贴图"),
+    "Text": ("Texte", "识字"),
+    "Record": ("Filmer", "录屏"),
+    "Pin the screenshot above all windows  (Ctrl+P)\nDrag to move · wheel to zoom · Ctrl+wheel opacity · double-click or Esc to close":
+        ("Épingler la capture au-dessus de toutes les fenêtres  (Ctrl+P)\nGlisser = déplacer · molette = zoom · Ctrl+molette = opacité · double-clic ou Échap = fermer",
+         "把截图钉在所有窗口最上层  (Ctrl+P)\n拖动移动 · 滚轮缩放 · Ctrl+滚轮调透明度 · 双击或 Esc 关闭"),
+    "Extract the text of the screenshot  (Ctrl+T)\nWindows OCR, works offline":
+        ("Extraire le texte de la capture  (Ctrl+T)\nOCR de Windows, hors ligne", "识别截图中的文字  (Ctrl+T)\n使用 Windows 自带 OCR，离线可用"),
+    "Record part of the screen as an animated GIF  (Ctrl+R)\nEsc or Stop to finish":
+        ("Filmer une partie de l'écran en GIF animé  (Ctrl+R)\nÉchap ou Arrêter pour terminer", "把屏幕的一部分录成 GIF 动图  (Ctrl+R)\n按 Esc 或「停止」结束"),
+    "Extract text (OCR)": ("Extraire le texte (OCR)", "识别文字 (OCR)"),
+    "Take or select a screenshot first": ("Faites ou sélectionnez d'abord une capture", "请先截图或选中一张截图"),
+    "pinned image": ("image épinglée", "贴图"),
+    "Pinned  ·  drag to move, wheel to zoom, Ctrl+wheel opacity, double-click or Esc to close":
+        ("Épinglée  ·  glisser = déplacer, molette = zoom, Ctrl+molette = opacité, double-clic ou Échap = fermer",
+         "已贴图  ·  拖动移动，滚轮缩放，Ctrl+滚轮调透明度，双击或 Esc 关闭"),
+    "Actual size": ("Taille réelle", "原始大小"),
+    "Save as…": ("Enregistrer sous…", "另存为…"),
+    "Close all pinned images": ("Fermer toutes les images épinglées", "关闭所有贴图"),
+    "Auto": ("Auto", "自动"),
+    "Copy text": ("Copier le texte", "复制文字"),
+    "Recognising text…": ("Reconnaissance du texte…", "正在识别文字…"),
+    "OCR failed: {e}": ("Échec de l'OCR : {e}", "文字识别失败：{e}"),
+    "Windows OCR is not available on this computer.": ("L'OCR de Windows n'est pas disponible sur cet ordinateur.",
+                                                       "这台电脑上无法使用 Windows OCR。"),
+    "No OCR language is installed. Add one in Windows Settings → Time & language → Language & region (a language with “Optical character recognition”).":
+        ("Aucune langue OCR n'est installée. Ajoutez-en une dans Paramètres Windows → Heure et langue → Langue et région (langue avec « Reconnaissance optique de caractères »).",
+         "没有安装 OCR 语言。请在 Windows 设置 → 时间和语言 → 语言和区域 中添加一种带「光学字符识别」的语言。"),
+    "No text found.": ("Aucun texte trouvé.", "没有识别到文字。"),
+    "{n} lines · language {lang} · copied to the clipboard": ("{n} ligne(s) · langue {lang} · copié dans le presse-papiers",
+                                                              "{n} 行 · 语言 {lang} · 已复制到剪贴板"),
+    "✓ Text copied": ("✓ Texte copié", "✓ 文字已复制"),
+    "Starting…": ("Démarrage…", "正在开始…"),
+    "Auto-scroll": ("Défilement auto", "自动滚动"),
+    "Pause": ("Pause", "暂停"),
+    "Done": ("Terminé", "完成"),
+    "{h} px  ·  scroll down (by hand or Auto-scroll)  ·  Esc = done":
+        ("{h} px  ·  faites défiler vers le bas (à la main ou défilement auto)  ·  Échap = terminé",
+         "{h} px  ·  向下滚动（手动或自动滚动）  ·  Esc = 完成"),
+    "⚠ Lost track – scroll back up a little, then more slowly": ("⚠ Raccord perdu – remontez un peu, puis défilez plus lentement",
+                                                                  "⚠ 拼接中断 —— 请往回滚一点，再慢一些向下滚"),
+    "Stop": ("Arrêter", "停止"),
+    "Esc or Stop to finish": ("Échap ou Arrêter pour terminer", "按 Esc 或「停止」结束"),
+    "Recording cancelled": ("Enregistrement annulé", "已取消录屏"),
+    "Recording discarded": ("Enregistrement abandonné", "录屏未保存"),
+    "Save recording as": ("Enregistrer la vidéo sous", "录屏另存为"),
+    "GIF animation": ("Animation GIF", "GIF 动图"),
+    "Saving GIF… {p}%": ("Enregistrement du GIF… {p} %", "正在保存 GIF… {p}%"),
+    "GIF saved: {p}": ("GIF enregistré : {p}", "GIF 已保存：{p}"),
+    "✓ GIF saved": ("✓ GIF enregistré", "✓ GIF 已保存"),
+    "  ·  stopped at the length limit": ("  ·  arrêté à la durée maximale", "  ·  已达到最长时长，自动停止"),
+    "Recording frame rate": ("Images par seconde (vidéo)", "录屏帧率"),
+    "{n} frames / s": ("{n} images / s", "{n} 帧/秒"),
+    "Ctrl+P         pin screenshot to the screen": ("Ctrl+P         épingler la capture à l'écran", "Ctrl+P         贴图置顶"),
+    "Ctrl+T         extract text (OCR)": ("Ctrl+T         extraire le texte (OCR)", "Ctrl+T         识别文字 (OCR)"),
+    "Ctrl+R         record screen to GIF  ·  Esc stop": ("Ctrl+R         filmer l'écran en GIF  ·  Échap = arrêter",
+                                                         "Ctrl+R         录屏为 GIF  ·  Esc 停止"),
 }
 
 SHORTCUTS_EN = (
@@ -414,6 +478,14 @@ MultiCapture keeps every screenshot you take. Arrange several of them on one boa
 
 # 10. Language
 - Options → Language: English, Français, 中文 (restart of the app).
+
+# 11. Extra features (optional, off by default)
+Options → Extra features switches each of these on or off. While a feature is off it adds nothing to the window.
+- Pin to screen: the 📌 Pin button (or Ctrl+P, or right-click a history card) floats the screenshot above all windows. Drag to move, wheel to zoom, Ctrl+wheel to change opacity, double-click or Esc to close, right-click for Copy / Save / Close all.
+- Text recognition (OCR): the 🔤 Text button (or Ctrl+T) reads the text of the screenshot with the OCR engine built into Windows 10/11. It works offline. The text is copied to the clipboard and can be edited in the window. Pick the language in the window; Windows only offers the languages installed with "Optical character recognition" (Settings → Time & language → Language & region).
+- Scrolling capture: adds "Scrolling" to the capture mode list. Drag a rectangle over the part of the window that scrolls. It then scrolls down by itself and joins the frames into one long image. Click Pause to scroll by hand instead (slowly), and Done or Esc to finish. It stops by itself at the end of the page.
+- Screen recording (GIF): the ⏺ Record button (or Ctrl+R) records a rectangle (or the full screen in Full screen mode) to an animated GIF. Esc or Stop ends it, then you choose where to save. The frame rate (5, 10 or 15 per second) is in Options → Extra features. A recording stops by itself after 60 s.
+> The control bar and the coloured frame around the region are not part of the capture or the recording.
 """,
     "fr": """# MultiCapture – Guide d'utilisation
 MultiCapture conserve toutes vos captures d'écran. Disposez-en plusieurs sur une même planche (2×2, 3×3 …), annotez-les, mesurez, ajoutez des notes et collez le résultat directement dans un e-mail, Word ou Excel.
@@ -477,6 +549,14 @@ MultiCapture conserve toutes vos captures d'écran. Disposez-en plusieurs sur un
 
 # 10. Langue
 - Options → Langue : English, Français, 中文 (redémarrage de l'application).
+
+# 11. Fonctions supplémentaires (facultatives, désactivées par défaut)
+Options → Fonctions supplémentaires active ou désactive chacune d'elles. Une fonction désactivée n'ajoute rien à la fenêtre.
+- Épingler à l'écran : le bouton 📌 Épingler (ou Ctrl+P, ou clic droit sur une carte de l'historique) fait flotter la capture au-dessus de toutes les fenêtres. Glisser = déplacer, molette = zoom, Ctrl+molette = opacité, double-clic ou Échap = fermer, clic droit = Copier / Enregistrer / Tout fermer.
+- Reconnaissance de texte (OCR) : le bouton 🔤 Texte (ou Ctrl+T) lit le texte de la capture avec le moteur OCR intégré à Windows 10/11, hors ligne. Le texte est copié dans le presse-papiers et reste modifiable dans la fenêtre. Choisissez la langue dans la fenêtre ; Windows ne propose que les langues installées avec « Reconnaissance optique de caractères » (Paramètres → Heure et langue → Langue et région).
+- Capture défilante : ajoute « Défilante » aux modes de capture. Tracez un rectangle sur la partie de la fenêtre qui défile. La page défile ensuite toute seule et les images sont assemblées en une longue capture. Cliquez Pause pour faire défiler à la main (lentement), puis Terminé ou Échap. Elle s'arrête seule en bas de la page.
+- Enregistrement d'écran (GIF) : le bouton ⏺ Filmer (ou Ctrl+R) enregistre un rectangle (ou tout l'écran en mode Plein écran) en GIF animé. Échap ou Arrêter pour terminer, puis choisissez où l'enregistrer. La cadence (5, 10 ou 15 images/s) se règle dans Options → Fonctions supplémentaires. L'enregistrement s'arrête seul après 60 s.
+> La barre de commande et le cadre coloré autour de la zone ne figurent pas dans la capture ni dans la vidéo.
 """,
     "zh": """# MultiCapture 使用说明
 MultiCapture 会保留你截的每一张图。可以把多张截图放在同一个拼图里（2×2、3×3 …），进行标注、测量、写备注，然后直接粘贴到邮件、Word 或 Excel 中。
@@ -540,6 +620,14 @@ MultiCapture 会保留你截的每一张图。可以把多张截图放在同一�
 
 # 10. 语言
 - 「选项」→「语言 / Language」：English、Français、中文（重启软件后生效）。
+
+# 11. 扩展功能（可选，默认关闭）
+在「选项」→「扩展功能」里可以单独打开或关闭下面每一项。关闭时，界面上不会多出任何按钮。
+- 贴图置顶：点「📌 贴图」（或 Ctrl+P，或在历史记录卡片上右键），截图会钉在所有窗口的最上层。拖动移动，滚轮缩放，Ctrl+滚轮调透明度，双击或 Esc 关闭，右键可复制 / 保存 / 关闭所有贴图。
+- 文字识别 (OCR)：点「🔤 识字」（或 Ctrl+T），用 Windows 10/11 自带的 OCR 引擎识别截图里的文字，完全离线。识别结果会自动复制到剪贴板，也可以在窗口里修改。可在窗口里选择语言；Windows 只提供已安装「光学字符识别」的语言（设置 → 时间和语言 → 语言和区域）。
+- 长截图 / 滚动截图：截图模式里会多出「长截图」。在需要滚动的窗口区域拖出一个矩形，软件会自动向下滚动，并把每一屏拼接成一张长图。点「暂停」可改为自己慢慢滚动，点「完成」或按 Esc 结束。滚到页面底部时会自动结束。
+- 录屏 (GIF)：点「⏺ 录屏」（或 Ctrl+R），录制一个矩形区域（「全屏」模式下录制整个屏幕）为 GIF 动图。按 Esc 或「停止」结束，然后选择保存位置。帧率（每秒 5、10 或 15 帧）在「选项」→「扩展功能」里设置。录制 60 秒后会自动停止。
+> 控制条和区域外的彩色边框不会被截进图片或录进视频。
 """,
 }
 

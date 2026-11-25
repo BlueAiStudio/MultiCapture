@@ -27,6 +27,15 @@ The built-in Snipping Tool keeps one capture at a time. MultiCapture keeps **all
 - **Global hotkey** `Ctrl+Alt+S`. Region, full-screen and last-region modes, with an optional delay.
 - **Languages**: English, Français, 中文. A built-in user guide is under Help.
 
+#### Optional extras (off by default)
+
+Switch each one on in **Options → Extra features**. While a feature is off it adds nothing to the window. None of them needs a download or an internet connection.
+
+- **Pin to screen** (`Ctrl+P`): float a screenshot above all windows. Drag to move, wheel to zoom, Ctrl+wheel for opacity.
+- **Text recognition (OCR)** (`Ctrl+T`): extract the text of a screenshot with the OCR engine built into Windows 10/11, offline. Supports every language Windows has OCR for (Chinese, English, French, …).
+- **Scrolling capture**: a "Scrolling" capture mode that auto-scrolls a window and stitches it into one long image.
+- **Screen recording to GIF** (`Ctrl+R`): record a region or the full screen to an animated GIF (5 / 10 / 15 fps, up to 60 s).
+
 ### Download
 
 Get `MultiCapture.exe` from the [latest release](https://github.com/xieganglaoliu/MultiCapture/releases/latest). It is portable: no installer and no Python needed. Windows SmartScreen may warn because the exe is not code-signed; choose **More info → Run anyway**.
@@ -60,7 +69,9 @@ powershell -ExecutionPolicy Bypass -File install_shortcut.ps1
 | File | Purpose |
 |---|---|
 | `multicapture.py` | The application |
+| `extras.py` | Optional features: pin, OCR, scrolling capture, GIF recording |
 | `i18n.py` | Translations (fr / zh) and the user guide |
+| `tests/` | Tests for the optional features (`python -m unittest discover tests`) |
 | `make_icon.py` | Generates `multicapture.ico` / `.png` |
 | `build.ps1` | PyInstaller build script |
 | `install_shortcut.ps1` | Optional local install plus Start-menu shortcut |
@@ -82,6 +93,13 @@ Session data is stored in `%APPDATA%\MultiCapture\`.
 - 「删除」菜单可以删除当前截图、整个宫格或全部截图；
 - 全局快捷键 `Ctrl+Alt+S`；界面支持中文、英文、法文，并内置使用说明。
 
+可选的扩展功能（默认关闭，在「选项」→「扩展功能」中单独打开，全部离线、无需下载）：
+
+- **贴图置顶**（`Ctrl+P`）：把截图钉在所有窗口最上层，可拖动、缩放、调透明度；
+- **文字识别 OCR**（`Ctrl+T`）：使用 Windows 10/11 自带的 OCR 引擎识别截图中的文字，支持中文、英文等；
+- **长截图 / 滚动截图**：截图模式中多出「长截图」，自动滚动窗口并拼接成一张长图；
+- **录屏 GIF**（`Ctrl+R`）：把屏幕区域或全屏录成 GIF 动图（每秒 5 / 10 / 15 帧，最长 60 秒）。
+
 下载：在 [Releases](https://github.com/xieganglaoliu/MultiCapture/releases/latest) 页面下载 `MultiCapture.exe`，免安装、不需要 Python。
 
 运行源码：`pip install Pillow`，然后执行 `python multicapture.py`。打包：运行 `build.ps1`，生成的 `dist\MultiCapture.exe` 是免安装版，双击即可使用。
@@ -97,7 +115,8 @@ L'Outil Capture d'écran ne garde qu'une capture à la fois. MultiCapture les ga
 - Annotations modifiables et zones de texte de type Word ;
 - Mesures façon PDF : distance, périmètre, surface, angle ;
 - Panneau de notes, export PNG / JPG / BMP / PDF, demande d'enregistrement à la fermeture ;
-- Interface en français, anglais et chinois, avec un guide intégré.
+- Interface en français, anglais et chinois, avec un guide intégré ;
+- Fonctions facultatives, désactivées par défaut (Options → Fonctions supplémentaires) : épingler à l'écran, reconnaissance de texte (OCR de Windows, hors ligne), capture défilante, enregistrement d'écran en GIF.
 
 Téléchargement : `MultiCapture.exe` dans les [Releases](https://github.com/xieganglaoliu/MultiCapture/releases/latest), sans installation ni Python.
 
