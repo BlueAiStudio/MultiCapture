@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Themes: a theme changes the colours, the icon of each function and the decorations (header and canvas pictures), and can put a frame around copied and exported screenshots (picture frame or card style, with stickers such as flowers, a moon or stars). Open them with the new 🎨 Themes button.
+- Built-in themes: Flowers, Night and Simple card.
+- "Get online themes" downloads new or updated themes from the `themes/` folder of the GitHub repository. The app only goes online when you click it.
+- Themes can be imported and exported as .zip files, and "Make my own from this…" starts a new theme from an existing one. See `docs/THEMES.md`.
+
 ## 1.3.2
 
 - Renamed the app from "MultiCapture HAO" to "MultiCapture". The exe is now `MultiCapture.exe`.

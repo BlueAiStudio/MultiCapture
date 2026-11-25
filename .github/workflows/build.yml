@@ -26,6 +26,9 @@ jobs:
       - name: Import check
         run: python -c "import multicapture, i18n; print(multicapture.APP_NAME, multicapture.VERSION)"
 
+      - name: Check themes
+        run: python tools/check_themes.py
+
       - name: Build exe
         run: powershell -ExecutionPolicy Bypass -File build.ps1
 
