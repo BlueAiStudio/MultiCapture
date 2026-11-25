@@ -97,7 +97,7 @@ for snd in (False, True):          # with sound on, a machine without audio devi
     extras.save_video(take, path)
     assert os.path.getsize(path) > 500
     print("MP4 OK", "sound" if snd else "silent", round(take.duration, 1), "s", len(take.audio), "track(s)",
-          os.path.getsize(path), "bytes", take.notes)
+          os.path.getsize(path), "bytes", ascii(take.notes))
 
 app.feat["feat_scroll"].set(False)
 app._features_changed()
