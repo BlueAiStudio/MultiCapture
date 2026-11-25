@@ -352,7 +352,7 @@ def shortcuts_text():
 # =========================================================================== USER GUIDE
 # Format: "# " = heading, "- " = bullet, "> " = tip, other = paragraph
 GUIDE = {
-    "en": """# MultiCapture HAO – User guide
+    "en": """# MultiCapture – User guide
 MultiCapture keeps every screenshot you take. Arrange several of them on one board (2×2, 3×3 …), mark them up, measure, add notes and paste the result straight into an e-mail, Word or Excel.
 
 # 1. Take a screenshot
@@ -415,7 +415,7 @@ MultiCapture keeps every screenshot you take. Arrange several of them on one boa
 # 10. Language
 - Options → Language: English, Français, 中文 (restart of the app).
 """,
-    "fr": """# MultiCapture HAO – Guide d'utilisation
+    "fr": """# MultiCapture – Guide d'utilisation
 MultiCapture conserve toutes vos captures d'écran. Disposez-en plusieurs sur une même planche (2×2, 3×3 …), annotez-les, mesurez, ajoutez des notes et collez le résultat directement dans un e-mail, Word ou Excel.
 
 # 1. Faire une capture
@@ -478,7 +478,7 @@ MultiCapture conserve toutes vos captures d'écran. Disposez-en plusieurs sur un
 # 10. Langue
 - Options → Langue : English, Français, 中文 (redémarrage de l'application).
 """,
-    "zh": """# MultiCapture HAO 使用说明
+    "zh": """# MultiCapture 使用说明
 MultiCapture 会保留你截的每一张图。可以把多张截图放在同一个拼图里（2×2、3×3 …），进行标注、测量、写备注，然后直接粘贴到邮件、Word 或 Excel 中。
 
 # 1. 截图

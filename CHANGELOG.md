@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.2
+
+- Renamed the app from "MultiCapture HAO" to "MultiCapture". The exe is now `MultiCapture.exe`.
+- Settings and history move automatically from `%APPDATA%\MultiCapture_HAO` to `%APPDATA%\MultiCapture` on first start.
+- `install_shortcut.ps1` removes the old "MultiCapture HAO" Start-menu shortcut and install folder.
+
 ## 1.3.1
 
 - Lower memory use: only the 16 most recently used screenshots are kept in memory at full size. The others are reloaded from the session folder when you open them, so a long history no longer takes several GB of RAM. Startup is also faster because old screenshots are not decoded until needed.

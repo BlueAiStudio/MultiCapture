@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-MultiCapture HAO  -  multi-screenshot board for Windows
+MultiCapture  -  multi-screenshot board for Windows
 
 * Every capture is kept (nothing is overwritten) - history panel on the left
 * Board views: Single / 2x2 / 3x3 / 4x4 / All  - drag cells to reorder
@@ -39,8 +39,8 @@ from i18n import LANG, LANGS, detect_lang, guide_text, shortcuts_text, tr
 MODE_KEYS = ["Region", "Full screen", "Last region"]
 DELAY_KEYS = ["No delay", "3 s", "5 s", "10 s"]
 
-APP_NAME = "MultiCapture HAO"
-VERSION = "1.3.1"
+APP_NAME = "MultiCapture"
+VERSION = "1.3.2"
 # Full-size screenshots kept in RAM at once; older ones are reloaded from the session folder on demand.
 MAX_LOADED = 16
 
@@ -57,7 +57,7 @@ except Exception:
 # Only when running the .py with python.exe do we set one, to get our own taskbar button.
 if not getattr(sys, "frozen", False):
     try:
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("HAO.MultiCapture.Dev")
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("MultiCapture.Dev")
     except Exception:
         pass
 
@@ -65,7 +65,14 @@ user32 = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
 
 # --------------------------------------------------------------------------- paths
-APPDATA = os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")), "MultiCapture_HAO")
+_APPDATA_BASE = os.environ.get("APPDATA", os.path.expanduser("~"))
+APPDATA = os.path.join(_APPDATA_BASE, "MultiCapture")
+_OLD_APPDATA = os.path.join(_APPDATA_BASE, "MultiCapture_HAO")   # folder name used up to v1.3.1
+if not os.path.exists(APPDATA) and os.path.isdir(_OLD_APPDATA):
+    try:
+        os.rename(_OLD_APPDATA, APPDATA)   # keep history and settings from older versions
+    except OSError:
+        APPDATA = _OLD_APPDATA
 SESSION_DIR = os.path.join(APPDATA, "session")
 SETTINGS_FILE = os.path.join(APPDATA, "settings.json")
 DEFAULT_SAVE_DIR = os.path.join(os.path.expanduser("~"), "Pictures", "MultiCapture")
@@ -1377,8 +1384,7 @@ class App:
             tk.Label(head, image=self._logo, bg=PANEL).pack(side="left", padx=(12, 4), pady=8)
         except Exception:
             pass
-        tk.Label(head, text="MultiCapture", font=("Segoe UI Semibold", 12), bg=PANEL, fg=TEXT).pack(side="left")
-        tk.Label(head, text="HAO", font=("Segoe UI", 9), bg=PANEL, fg=MUTED).pack(side="left", padx=(3, 16))
+        tk.Label(head, text="MultiCapture", font=("Segoe UI Semibold", 12), bg=PANEL, fg=TEXT).pack(side="left", padx=(0, 16))
 
         FlatButton(head, "＋  " + tr("New capture"), self.new_capture, bg=ACCENT, fg="white", hover=ACCENT_D,
                    font=UI_BIG, padx=14, pady=6,
