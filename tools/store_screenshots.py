@@ -54,12 +54,12 @@ def sample_images():
     # 1. bar chart
     im = Image.new("RGB", (900, 560), "white")
     d = ImageDraw.Draw(im)
-    d.text((40, 24), "Quarterly results", fill="#111827", font=font(30, True))
+    d.text((40, 24), "Monthly sales", fill="#111827", font=font(30, True))
     vals = [42, 65, 51, 88, 73, 96]
     for i, v in enumerate(vals):
         x = 80 + i * 130
         d.rectangle((x, 500 - v * 4, x + 80, 500), fill=["#60A5FA", "#3B82F6", "#2563EB"][i % 3])
-        d.text((x + 20, 510), f"Q{i % 4 + 1}", fill="#6B7280", font=font(20))
+        d.text((x + 20, 510), ["Jan", "Feb", "Mar", "Apr", "May", "Jun"][i], fill="#6B7280", font=font(20))
     d.line((60, 500, 860, 500), fill="#9CA3AF", width=2)
     imgs.append(im)
     # 2. line chart
@@ -132,7 +132,7 @@ def run_scene(scene, theme, view, lang, out_png):
     it["objs"] += [
         app._new_obj("rect", box=[455, 105, 575, 505], color=red, width=4, fill=None),
         app._new_obj("arrow", p=[[260, 120], [440, 170]], color=red, width=5),
-        app._new_obj("marker", x=230, y=110, n=1, color=red, size=26),
+        app._new_obj("marker", x=600, y=110, n=1, color=red, size=26),
         app._new_obj("text", x=120, y=60, text="Best quarter!", color=red, size=26, bold=True, bg="#FFFFFF",
                      border=True),
     ]
