@@ -260,6 +260,9 @@ TR = {
     "Choose auto-save folder…": ("Choisir le dossier d'enregistrement…", "选择自动保存文件夹…"),
     "Open auto-save folder": ("Ouvrir le dossier d'enregistrement", "打开自动保存文件夹"),
     "Keep history between launches": ("Conserver l'historique entre les lancements", "关闭后保留历史记录"),
+    "History limit": ("Limite de l'historique", "历史记录上限"),
+    "Last {n} screenshots": ("{n} dernières captures", "最近 {n} 张"),
+    "Unlimited": ("Illimité", "不限"),
     "Clear history…": ("Effacer l'historique…", "清空历史记录…"),
     "Remove all annotations on this screenshot": ("Supprimer toutes les annotations de cette capture", "删除本截图的全部标注"),
     "Reset default scale": ("Réinitialiser l'échelle par défaut", "重置默认比例"),
@@ -442,7 +445,8 @@ TR = {
         "Outils :  V sélection · P stylo · H surligneur · L ligne · A flèche\n"
         "R rectangle · E ellipse · T texte · C bulle · N numéro\n"
         "S tampon · B flou · D distance · M périmètre · G surface\n"
-        "Q angle · K échelle",
+        "Q angle · K échelle\n"
+        "X gomme · F remplissage · I pipette   ·   Ctrl+Maj+N page blanche",
         "Ctrl+Alt+S   在任意位置截图（全局）\n"
         "Ctrl+N         新建截图\n"
         "Ctrl+C         复制当前视图\n"
@@ -459,7 +463,56 @@ TR = {
         "工具：V 选择 · P 画笔 · H 荧光笔 · L 直线 · A 箭头\n"
         "R 矩形 · E 椭圆 · T 文字 · C 标注框 · N 编号\n"
         "S 符号 · B 马赛克 · D 距离 · M 周长 · G 面积\n"
-        "Q 角度 · K 校准比例"),
+        "Q 角度 · K 校准比例\n"
+        "X 橡皮擦 · F 油漆桶 · I 取色器   ·   Ctrl+Shift+N 空白画布"),
+    # ---------------------------------------------------------------- Paint-style tools
+    "Eraser": ("Gomme", "橡皮擦"),
+    "Fill": ("Remplissage", "油漆桶"),
+    "Colour picker": ("Pipette", "取色器"),
+    "Crop": ("Rogner", "裁剪"),
+    "Eraser  (X)  - rubs out annotations, never the screenshot itself":
+        ("Gomme  (X)  - efface les annotations, jamais la capture elle-même", "橡皮擦  (X)  - 擦掉标注，不会擦掉截图本身"),
+    "Fill with colour  (F)  - fills an area of the same colour, like Paint":
+        ("Remplir de couleur  (F)  - remplit une zone de même couleur, comme Paint", "油漆桶  (F)  - 像“画图”一样填充颜色相同的区域"),
+    "Colour picker  (I)  - takes a colour from the picture":
+        ("Pipette  (I)  - prend une couleur dans l'image", "取色器  (I)  - 从图片上取颜色"),
+    "Crop  - drag the part of the picture to keep": ("Rogner  - glissez la partie de l'image à garder", "裁剪  - 拖出要保留的部分"),
+    "  ·  drag over annotations to rub them out (line width = eraser size)":
+        ("  ·  glissez sur les annotations pour les effacer (épaisseur = taille de la gomme)",
+         "  ·  在标注上拖动即可擦掉（线宽 = 橡皮擦大小）"),
+    "  ·  click an area to fill it with the current colour":
+        ("  ·  cliquez sur une zone pour la remplir avec la couleur actuelle", "  ·  点击区域，用当前颜色填充"),
+    "  ·  click the picture to take its colour": ("  ·  cliquez sur l'image pour prendre sa couleur", "  ·  点击图片取色"),
+    "  ·  drag the part to keep · Ctrl+Z undoes": ("  ·  glissez la partie à garder · Ctrl+Z annule", "  ·  拖出要保留的部分 · Ctrl+Z 撤销"),
+    "Colour picked: {c}": ("Couleur prise : {c}", "已取色：{c}"),
+    "IMAGE": ("IMAGE", "图像"),
+    "Rotate left": ("Rotation à gauche", "向左旋转"),
+    "Rotate right": ("Rotation à droite", "向右旋转"),
+    "Flip horizontal": ("Miroir horizontal", "水平翻转"),
+    "Flip vertical": ("Miroir vertical", "垂直翻转"),
+    "Resize…": ("Redimensionner…", "调整大小…"),
+    "Resize": ("Redimensionner", "调整大小"),
+    "Turn 90° to the left": ("Tourner de 90° vers la gauche", "向左转 90°"),
+    "Turn 90° to the right": ("Tourner de 90° vers la droite", "向右转 90°"),
+    "Mirror left ↔ right": ("Miroir gauche ↔ droite", "左右镜像"),
+    "Mirror top ↔ bottom": ("Miroir haut ↔ bas", "上下镜像"),
+    "Drag the part of the picture to keep": ("Glissez la partie de l'image à garder", "拖出要保留的部分"),
+    "Make the picture bigger or smaller": ("Agrandir ou réduire l'image", "放大或缩小图片"),
+    "New size in % of {w} × {h} px:": ("Nouvelle taille en % de {w} × {h} px :", "新尺寸（{w} × {h} px 的百分比）："),
+    "That picture would be too big.": ("Cette image serait trop grande.", "图片会太大。"),
+    "Picture changed: {w} × {h} px  ·  Ctrl+Z undoes": ("Image modifiée : {w} × {h} px  ·  Ctrl+Z annule",
+                                                        "图片已修改：{w} × {h} px  ·  Ctrl+Z 撤销"),
+    "New blank canvas": ("Nouvelle page blanche", "新建空白画布"),
+    "New blank canvas…": ("Nouvelle page blanche…", "新建空白画布…"),
+    "An empty page to draw on, like Paint  (Ctrl+Shift+N)": ("Une page vide pour dessiner, comme Paint  (Ctrl+Maj+N)",
+                                                            "像“画图”一样新建空白页来画画  (Ctrl+Shift+N)"),
+    "Blank canvas #{n} added  ({w} × {h})": ("Page blanche n° {n} ajoutée  ({w} × {h})", "已新建空白画布 #{n}  ({w} × {h})"),
+    "Ctrl+Shift+N opens a blank canvas to draw on.": ("Ctrl+Maj+N ouvre une page blanche pour dessiner.",
+                                                     "按 Ctrl+Shift+N 新建空白画布来画画。"),
+    "Width": ("Largeur", "宽度"),
+    "Height": ("Hauteur", "高度"),
+    "Width and height must be 16 to 8000 px.": ("La largeur et la hauteur doivent être entre 16 et 8000 px.",
+                                                "宽度和高度必须在 16 到 8000 px 之间。"),
     # ---------------------------------------------------------------- optional extra features
     "Extra features": ("Fonctions supplémentaires", "扩展功能"),
     "Pin to screen": ("Épingler à l'écran", "贴图置顶"),
@@ -557,7 +610,8 @@ SHORTCUTS_EN = (
     "Tools:  V select · P pen · H highlighter · L line · A arrow\n"
     "R rectangle · E ellipse · T text · C callout · N number\n"
     "S stamp · B blur · D distance · M perimeter · G area\n"
-    "Q angle · K calibrate scale")
+    "Q angle · K calibrate scale\n"
+    "X eraser · F fill · I colour picker   ·   Ctrl+Shift+N blank canvas")
 
 
 def shortcuts_text():
@@ -647,6 +701,14 @@ Options → Extra features switches each of these on or off. While a feature is 
 - "Get online themes" looks for new themes on GitHub. This is the only time the app goes online.
 - "Import .zip…" installs a theme someone sent you. "Make my own from this…" copies a theme into your themes folder so you can change its pictures and colours.
 > How to make a theme: see docs/THEMES.md on the project's GitHub page ("How to make a theme" button).
+
+# 13. Paint tools
+- Eraser (X): drag over annotations to rub them out. Pen and highlighter strokes and fills lose only the part under the eraser; other annotations it touches are removed. The screenshot itself is never erased. LINE WIDTH sets the eraser size.
+- Fill (F): click an area to fill it with the current colour – the area of the same colour around the click, as you see it with the annotations. The fill stays an annotation: select it to change its colour, move it or delete it.
+- Colour picker (I): click the picture to take its colour; the previous tool comes back.
+- IMAGE section of the right panel (Select tool, nothing selected), also in the right-click menu: Rotate left / right, Flip horizontal / vertical, Crop (drag the part to keep) and Resize… (in %). Annotations follow the picture. Ctrl+Z undoes.
+- New blank canvas… (Ctrl+Shift+N): an empty page in the history, with the size and background colour you choose, to draw on like in Paint with the pen, shapes and text.
+> The tool bar uses two columns when the window is too low for one.
 """,
     "fr": """# MultiCapture – Guide d'utilisation
 MultiCapture conserve toutes vos captures d'écran. Disposez-en plusieurs sur une même planche (2×2, 3×3 …), annotez-les, mesurez, ajoutez des notes et collez le résultat directement dans un e-mail, Word ou Excel.
@@ -728,6 +790,14 @@ Options → Fonctions supplémentaires active ou désactive chacune d'elles. Une
 - « Thèmes en ligne » cherche de nouveaux thèmes sur GitHub. C'est le seul moment où l'application se connecte.
 - « Importer un .zip… » installe un thème qu'on vous a envoyé. « Créer le mien à partir de celui-ci… » copie un thème dans votre dossier pour modifier ses images et couleurs.
 > Pour créer un thème : voir docs/THEMES.md sur la page GitHub du projet (bouton « Créer un thème »).
+
+# 13. Outils façon Paint
+- Gomme (X) : glissez sur les annotations pour les effacer. Les traits de stylo, de surligneur et les remplissages ne perdent que la partie sous la gomme ; les autres annotations touchées sont supprimées. La capture elle-même n'est jamais effacée. ÉPAISSEUR règle la taille de la gomme.
+- Remplissage (F) : cliquez sur une zone pour la remplir avec la couleur actuelle – la zone de même couleur autour du clic, telle que vous la voyez avec les annotations. Le remplissage reste une annotation : sélectionnez-le pour changer sa couleur, le déplacer ou le supprimer.
+- Pipette (I) : cliquez sur l'image pour prendre sa couleur ; l'outil précédent revient.
+- Section IMAGE du panneau de droite (outil Sélection, rien de sélectionné), aussi dans le menu du clic droit : Rotation gauche / droite, Miroir horizontal / vertical, Rogner (glissez la partie à garder) et Redimensionner… (en %). Les annotations suivent l'image. Ctrl+Z annule.
+- Nouvelle page blanche… (Ctrl+Maj+N) : une page vide dans l'historique, de la taille et de la couleur de fond choisies, pour dessiner comme dans Paint.
+> La barre d'outils passe sur deux colonnes quand la fenêtre est trop basse.
 """,
     "zh": """# MultiCapture 使用说明
 MultiCapture 会保留你截的每一张图。可以把多张截图放在同一个拼图里（2×2、3×3 …），进行标注、测量、写备注，然后直接粘贴到邮件、Word 或 Excel 中。
@@ -809,6 +879,14 @@ MultiCapture 会保留你截的每一张图。可以把多张截图放在同一�
 - 「获取在线主题」会到 GitHub 查找新主题。只有点这个按钮时软件才会联网。
 - 「导入 .zip…」安装别人发给你的主题；「以此为模板自己做…」会把主题复制到你的主题文件夹，方便你改图片和配色。
 > 如何制作主题：见项目 GitHub 页面上的 docs/THEMES.md（点「如何制作主题」按钮即可打开）。
+
+# 13. 画图工具（类似 Windows“画图”）
+- 橡皮擦 (X)：在标注上拖动即可擦掉。画笔、荧光笔和填充只擦掉橡皮擦经过的部分；其他标注碰到就整个删除。截图本身永远不会被擦掉。橡皮擦大小由「线宽」决定。
+- 油漆桶 (F)：点一个区域，用当前颜色填充点击处周围颜色相同的区域（按你看到的画面，包括标注）。填充仍是一个标注：选中后可以改颜色、移动或删除。
+- 取色器 (I)：在图片上点一下就取到那里的颜色，然后自动回到之前的工具。
+- 右侧面板的「图像」区（选择工具且没有选中标注时显示），右键菜单里也有：向左 / 向右旋转、水平 / 垂直翻转、裁剪（拖出要保留的部分）、调整大小…（按百分比）。标注会跟着图片一起变。Ctrl+Z 可撤销。
+- 新建空白画布…（Ctrl+Shift+N）：在历史记录里新建一张空白图，可选尺寸和背景色，像在“画图”里一样画画。
+> 窗口太矮时，左侧工具栏会自动变成两列。
 """,
 }
 
