@@ -145,7 +145,9 @@ TR = {
     "NOTES  ·  #{n}": ("NOTES  ·  #{n}", "备注  ·  #{n}"),
     "Include notes when copying / exporting": ("Inclure les notes (copie / export)", "复制 / 导出时包含备注"),
     "  (callout)": ("  (bulle)", "  (标注框)"),
-    "Nothing selected  ·  click an annotation": ("Aucune sélection  ·  cliquez une annotation", "未选中  ·  点击一个标注"),
+    "Nothing selected  ·  click an annotation  ·  Ctrl / Shift + click for several":
+        ("Aucune sélection  ·  cliquez une annotation  ·  Ctrl / Maj + clic pour plusieurs",
+         "未选中  ·  点击一个标注  ·  按住 Ctrl / Shift 点击可多选"),
     "New: {name}": ("Nouveau : {name}", "新建：{name}"),
     "Scale: 1 px = {k} {u}\nSource: {src}": ("Échelle : 1 px = {k} {u}\nSource : {src}", "比例：1 px = {k} {u}\n来源：{src}"),
     "reference line": ("ligne de référence", "参考线"),
@@ -171,7 +173,9 @@ TR = {
     "Area": ("Surface", "面积"),
     "Angle": ("Angle", "角度"),
     "Scale reference": ("Référence d'échelle", "比例参考"),
-    "Select / move / resize  (V)": ("Sélection / déplacer / redimensionner  (V)", "选择 / 移动 / 调整大小  (V)"),
+    "Select / move / resize  (V)\nCtrl / Shift + click: select several · Shift + drag: select with a box · Ctrl+A: all":
+        ("Sélection / déplacer / redimensionner  (V)\nCtrl / Maj + clic : sélection multiple · Maj + glisser : sélection par cadre · Ctrl+A : tout",
+         "选择 / 移动 / 调整大小  (V)\nCtrl / Shift + 点击：多选 · Shift + 拖动：框选 · Ctrl+A：全选"),
     "Pen  (P)": ("Stylo  (P)", "画笔  (P)"),
     "Highlighter  (H)": ("Surligneur  (H)", "荧光笔  (H)"),
     "Line  (L)  - hold Shift for 45°": ("Ligne  (L)  - Maj pour 45°", "直线  (L)  - 按住 Shift 锁定 45°"),
@@ -491,6 +495,9 @@ TR = {
         "Ctrl+S         enregistrer la vue   ·   Ctrl+Maj+S  tout enregistrer\n"
         "Ctrl+Z / Y    annuler / rétablir\n"
         "Ctrl+D         dupliquer l'annotation\n"
+        "Ctrl+A         tout sélectionner (sur la planche : toutes les captures)\n"
+        "Ctrl / Maj + clic   sélection multiple (annotations ou cartes de l'historique)\n"
+        "Maj + glisser  sélectionner des annotations avec un cadre\n"
         "Suppr           supprimer l'annotation (ou la capture)\n"
         "Ctrl+Maj+Suppr  supprimer toutes les captures\n"
         "Flèches        déplacer l'annotation (Maj = 10 px)\n"
@@ -511,6 +518,9 @@ TR = {
         "Ctrl+S         保存当前视图   ·   Ctrl+Shift+S  全部保存\n"
         "Ctrl+Z / Y    撤销 / 重做\n"
         "Ctrl+D         复制标注\n"
+        "Ctrl+A         全选标注（拼图视图下：全选截图）\n"
+        "Ctrl / Shift + 点击   多选（标注或历史记录卡片）\n"
+        "Shift + 拖动   框选标注\n"
         "Delete          删除标注（或截图）\n"
         "Ctrl+Shift+Delete  删除全部截图\n"
         "方向键         微移标注（Shift = 10 px）\n"
@@ -523,6 +533,25 @@ TR = {
         "S 符号 · W 表格 · B 马赛克 · D 距离 · M 周长\n"
         "G 面积 · Q 角度 · K 校准比例\n"
         "X 橡皮擦 · F 油漆桶 · I 取色器   ·   Ctrl+Shift+N 空白画布"),
+    # ---------------------------------------------------------------- selecting several (Ctrl / Shift)
+    "{n} annotations selected": ("{n} annotations sélectionnées", "已选中 {n} 个标注"),
+    "{n} annotation(s) deleted": ("{n} annotation(s) supprimée(s)", "已删除 {n} 个标注"),
+    "{n} annotations selected  ·  drag to move them together · Delete · Ctrl+D · colour and size apply to all  ·  Ctrl / Shift + click adds or removes one":
+        ("{n} annotations sélectionnées  ·  glisser pour les déplacer ensemble · Suppr · Ctrl+D · couleur et taille s'appliquent à toutes  ·  Ctrl / Maj + clic ajoute ou retire",
+         "已选中 {n} 个标注  ·  拖动可一起移动 · Delete 删除 · Ctrl+D 复制 · 颜色和大小同时修改  ·  Ctrl / Shift + 点击可加选或取消"),
+    "Select all annotations": ("Sélectionner toutes les annotations", "全选标注"),
+    "{n} screenshots selected  ·  right-click for what to do with them · Delete removes them":
+        ("{n} captures sélectionnées  ·  clic droit pour les actions · Suppr les supprime",
+         "已选中 {n} 张截图  ·  右键查看可用操作 · Delete 删除"),
+    "{n} screenshots selected": ("{n} captures sélectionnées", "已选中 {n} 张截图"),
+    "{n} screenshots": ("{n} captures", "{n} 张截图"),
+    "Copy together as one picture": ("Copier ensemble en une seule image", "合成一张图复制"),
+    "Compare these two": ("Comparer ces deux captures", "对比这两张"),
+    "Put at the end of the board": ("Placer en fin de planche", "移到拼图最后"),
+    "{n} screenshot(s) put at the end of the board": ("{n} capture(s) placée(s) en fin de planche", "已把 {n} 张截图移到拼图最后"),
+    "Save as PNG files…": ("Enregistrer en fichiers PNG…", "保存为 PNG 文件…"),
+    "Save in one PDF…": ("Enregistrer dans un seul PDF…", "保存为一个 PDF…"),
+    "Delete {n} screenshots…": ("Supprimer {n} captures…", "删除这 {n} 张截图…"),
     # ---------------------------------------------------------------- Paint-style tools
     "Eraser": ("Gomme", "橡皮擦"),
     "Fill": ("Remplissage", "油漆桶"),
@@ -729,6 +758,9 @@ SHORTCUTS_EN = (
     "Ctrl+S         save current view    ·   Ctrl+Shift+S  save all\n"
     "Ctrl+Z / Y    undo / redo\n"
     "Ctrl+D         duplicate annotation\n"
+    "Ctrl+A         select all annotations (on the board: all screenshots)\n"
+    "Ctrl / Shift + click   select several (annotations or history cards)\n"
+    "Shift + drag   select annotations with a box\n"
     "Delete          delete annotation (or screenshot)\n"
     "Ctrl+Shift+Delete  delete all screenshots\n"
     "Arrows         nudge annotation (Shift = 10 px)\n"
@@ -766,6 +798,7 @@ MultiCapture keeps every screenshot you take. Arrange several of them on one boa
 - Drag a cell onto another cell to swap their positions.
 - Double-click a cell to open that screenshot in Single view for editing.
 - Right-click a history card → "Move to end of board" to bring an older screenshot back into the board.
+- Several screenshots at once: Ctrl + click history cards (or board cells) to add or remove them, Shift + click to take every card between the last one clicked and this one, Ctrl+A on the board to take all. Then right-click one of them: Copy together as one picture, Compare these two, Put at the end of the board, Save as PNG files, Save in one PDF or Delete. The Delete key deletes them all (after one confirmation), Esc ends the selection.
 - Drag pictures in from Explorer or a web browser (onto the image or the history). A dialog asks what to do: Merge with the other screenshots (added to the board), Open on its own (kept out of the board – right-click its card → "Add to board" later), or Float on top of the current screenshot.
 - Float on top: the picture lies over the screenshot like an annotation. With Select, drag it to move, drag a corner to resize (proportions kept), set a border and the opacity in the PICTURE section, Delete removes it. It is merged into the screenshot when copying or saving. Right-click another history card → "Float on top of the current screenshot" does the same with one of your screenshots.
 - Delete ▾: delete the selected screenshot (Delete key), the screenshots of the current board, or ALL screenshots at once (Ctrl+Shift+Delete). You are asked to confirm, with a warning if some were never saved to a file.
@@ -782,6 +815,7 @@ MultiCapture keeps every screenshot you take. Arrange several of them on one boa
 - Blur: drag over confidential information to pixelate it.
 - Colour, line width, fill and opacity are set in the right panel.
 > Every annotation stays editable: choose Select (V), click an object, then drag it, pull its white handles, change its colour / size in the right panel, or press Delete. Ctrl+Z / Ctrl+Y = undo / redo (also the ↶ Undo / ↷ Redo buttons in the top bar), Ctrl+D = duplicate, arrow keys = nudge.
+- Several annotations at once: with Select, Ctrl + click or Shift + click adds an annotation to the selection (click it again to take it out), Shift + drag on an empty spot draws a box that selects every annotation fully inside it, Ctrl+A selects them all. Drag any of them (or the blue ✥ handle) to move them together; Delete, Ctrl+D, arrow keys, Bring to front / Send to back and the colour, width and font settings on the right apply to all of them, in one undo step. Esc ends the selection. A plain drag on an empty spot still pans the view.
 
 # 5. Text boxes and callouts (like Word)
 - Text (T): click where the text should go and type. Enter = new line; click outside, Esc or Ctrl+Enter = finish.
@@ -864,6 +898,7 @@ MultiCapture conserve toutes vos captures d'écran. Disposez-en plusieurs sur un
 - Faites glisser une case sur une autre pour échanger leurs positions.
 - Double-cliquez sur une case pour ouvrir la capture en vue Unique et la modifier.
 - Clic droit sur une carte de l'historique → « Placer en fin de planche » pour remettre une ancienne capture dans la planche.
+- Plusieurs captures à la fois : Ctrl + clic sur les cartes de l'historique (ou les cases de la planche) pour les ajouter ou les retirer, Maj + clic pour prendre toutes les cartes entre la dernière cliquée et celle-ci, Ctrl+A sur la planche pour tout prendre. Puis clic droit sur l'une d'elles : Copier ensemble en une seule image, Comparer ces deux captures, Placer en fin de planche, Enregistrer en fichiers PNG, Enregistrer dans un seul PDF ou Supprimer. La touche Suppr les supprime toutes (après une confirmation), Échap annule la sélection.
 - Glissez des images depuis l'Explorateur ou un navigateur web (sur l'image ou sur l'historique). Une fenêtre demande quoi faire : Fusionner avec les autres captures (ajoutées à la planche), Ouvrir à part (hors de la planche – clic droit sur sa carte → « Ajouter à la planche » plus tard), ou Superposer sur la capture actuelle.
 - Superposer : l'image est posée sur la capture comme une annotation. Avec Sélection, faites-la glisser pour la déplacer, tirez un coin pour la redimensionner (proportions conservées), réglez bordure et opacité dans la section IMAGE ; Suppr l'enlève. Elle est fusionnée avec la capture à la copie ou à l'enregistrement. Clic droit sur une autre carte de l'historique → « Superposer sur la capture actuelle » fait de même avec une de vos captures.
 - Supprimer ▾ : supprimer la capture sélectionnée (touche Suppr), les captures de la planche actuelle, ou TOUTES les captures d'un coup (Ctrl+Maj+Suppr). Une confirmation est demandée, avec un avertissement si certaines n'ont jamais été enregistrées.
@@ -880,6 +915,7 @@ MultiCapture conserve toutes vos captures d'écran. Disposez-en plusieurs sur un
 - Flou : glissez sur une information confidentielle pour la pixeliser.
 - Couleur, épaisseur, remplissage et opacité se règlent dans le panneau de droite.
 > Toutes les annotations restent modifiables : outil Sélection (V), cliquez un objet puis déplacez-le, tirez ses poignées blanches, changez sa couleur / taille à droite, ou appuyez sur Suppr. Ctrl+Z / Ctrl+Y = annuler / rétablir (aussi les boutons ↶ Annuler / ↷ Rétablir de la barre du haut), Ctrl+D = dupliquer, flèches = déplacement fin.
+- Plusieurs annotations à la fois : avec Sélection, Ctrl + clic ou Maj + clic ajoute une annotation à la sélection (recliquez pour la retirer), Maj + glisser sur un endroit vide trace un cadre qui sélectionne toutes les annotations entièrement dedans, Ctrl+A les sélectionne toutes. Faites glisser l'une d'elles (ou la poignée bleue ✥) pour les déplacer ensemble ; Suppr, Ctrl+D, les flèches, Premier plan / Arrière-plan et les réglages de couleur, d'épaisseur et de police à droite s'appliquent à toutes, en une seule étape d'annulation. Échap annule la sélection. Glisser sans touche sur un endroit vide déplace toujours la vue.
 
 # 5. Zones de texte et bulles (comme Word)
 - Texte (T) : cliquez à l'endroit voulu et tapez. Entrée = nouvelle ligne ; clic à l'extérieur, Échap ou Ctrl+Entrée = terminer.
@@ -962,6 +998,7 @@ MultiCapture 会保留你截的每一张图。可以把多张截图放在同一�
 - 把一个格子拖到另一个格子上，即可交换两张截图的位置。
 - 双击格子，可切换到单张视图进行编辑。
 - 在历史记录卡片上右键 →「移到拼图最后」，可以把较早的截图重新放进拼图。
+- 一次选多张截图：按住 Ctrl 点击历史记录卡片（或拼图里的格子）可以加选或取消，按住 Shift 点击会选中上次点击的卡片到这张之间的全部卡片，在拼图视图按 Ctrl+A 全选。然后在其中一张上右键：合成一张图复制、对比这两张、移到拼图最后、保存为 PNG 文件、保存为一个 PDF 或删除。按 Delete 键会把选中的全部删除（确认一次），按 Esc 取消多选。
 - 可以从资源管理器或浏览器把图片直接拖进来（拖到图片区或历史记录上）。会弹出选择框：「和现有其他图片合并」（加入拼图）、「单独打开」（不放进拼图，之后可在卡片上右键 →「加入拼图」），或「悬浮到当前图片上」。
 - 悬浮：图片像标注一样放在截图上面。用「选择」工具拖动可移动，拖角可缩放（保持比例），在右侧「图片」栏可设置边框和不透明度，按 Delete 删除。复制或保存时会和截图合并成一张图。在另一张历史卡片上右键 →「悬浮到当前图片上」，也可以把自己的截图叠加上去。
 - 「删除 ▾」菜单：可以删除选中的截图（Delete 键）、删除当前拼图里的截图，或一次删除全部截图（Ctrl+Shift+Delete）。删除前会让你确认，如果有截图还没保存成文件，也会提醒你。
@@ -978,6 +1015,7 @@ MultiCapture 会保留你截的每一张图。可以把多张截图放在同一�
 - 马赛克：在敏感信息上拖动即可打码。
 - 颜色、线宽、填充和不透明度在右侧面板中设置。
 > 所有标注都可以随时修改：选择「选择」工具（V），点击对象后可拖动、拉动白色控制点调整大小、在右侧修改颜色 / 大小，或按 Delete 删除。Ctrl+Z / Ctrl+Y 撤销 / 重做（顶部栏也有 ↶ 撤销 / ↷ 重做 按钮），Ctrl+D 复制，方向键微移。
+- 一次选多个标注：用「选择」工具，按住 Ctrl 或 Shift 点击标注可以加选（再点一次取消），按住 Shift 在空白处拖动会拉出一个框，框内完整包住的标注都会被选中，Ctrl+A 全选。拖动其中任意一个（或蓝色 ✥ 手柄）就能一起移动；Delete、Ctrl+D、方向键、置于顶层 / 置于底层，以及右侧的颜色、线宽、字体设置都会同时作用于所有选中的标注，并且一步就能撤销。按 Esc 取消多选。不按键直接在空白处拖动仍然是平移视图。
 
 # 5. 文本框和标注框（类似 Word）
 - 文字（T）：在需要的位置点击并输入。回车换行；点击外部、按 Esc 或 Ctrl+回车 完成。
