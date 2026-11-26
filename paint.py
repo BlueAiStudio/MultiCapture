@@ -194,7 +194,12 @@ def transform_objs(objs, op, size, arg=None, text_size=None):
         for key in ("pts", "p"):
             if key in o:
                 o[key] = [list(f(*p)) for p in o[key]]
-        if "box" in o:
+        if t == "table" and op in ("rot_cw", "rot_ccw"):    # tables stay upright too: move the centre
+            x0, y0, x1, y1 = o["box"]
+            cx, cy = f((x0 + x1) / 2, (y0 + y1) / 2)
+            hw, hh = abs(x1 - x0) / 2, abs(y1 - y0) / 2
+            o["box"] = [cx - hw, cy - hh, cx + hw, cy + hh]
+        elif "box" in o:
             (a, b), (c, d) = f(*o["box"][:2]), f(*o["box"][2:])
             o["box"] = [min(a, c), min(b, d), max(a, c), max(b, d)]
         if o.get("leader"):

@@ -461,8 +461,8 @@ TR = {
         "F1                guide d'utilisation\n\n"
         "Outils :  V sélection · P stylo · H surligneur · L ligne · A flèche\n"
         "R rectangle · E ellipse · T texte · C bulle · N numéro\n"
-        "S tampon · B flou · D distance · M périmètre · G surface\n"
-        "Q angle · K échelle\n"
+        "S tampon · W tableau · B flou · D distance · M périmètre\n"
+        "G surface · Q angle · K échelle\n"
         "X gomme · F remplissage · I pipette   ·   Ctrl+Maj+N page blanche",
         "Ctrl+Alt+S   在任意位置截图（全局）\n"
         "Ctrl+N         新建截图\n"
@@ -481,8 +481,8 @@ TR = {
         "F1                使用说明\n\n"
         "工具：V 选择 · P 画笔 · H 荧光笔 · L 直线 · A 箭头\n"
         "R 矩形 · E 椭圆 · T 文字 · C 标注框 · N 编号\n"
-        "S 符号 · B 马赛克 · D 距离 · M 周长 · G 面积\n"
-        "Q 角度 · K 校准比例\n"
+        "S 符号 · W 表格 · B 马赛克 · D 距离 · M 周长\n"
+        "G 面积 · Q 角度 · K 校准比例\n"
         "X 橡皮擦 · F 油漆桶 · I 取色器   ·   Ctrl+Shift+N 空白画布"),
     # ---------------------------------------------------------------- Paint-style tools
     "Eraser": ("Gomme", "橡皮擦"),
@@ -532,6 +532,51 @@ TR = {
     "Height": ("Hauteur", "高度"),
     "Width and height must be 16 to 8000 px.": ("La largeur et la hauteur doivent être entre 16 et 8000 px.",
                                                 "宽度和高度必须在 16 到 8000 px 之间。"),
+    # ---------------------------------------------------------------- table, symbols
+    "Table  (W)  - drag to place it, double-click a cell to type":
+        ("Tableau  (W)  - tracez-le, double-cliquez sur une case pour écrire", "表格  (W)  - 拖出表格，双击格子输入文字"),
+    "Table": ("Tableau", "表格"),
+    "TABLE": ("TABLEAU", "表格"),
+    "Rows": ("Lignes", "行数"),
+    "Columns": ("Colonnes", "列数"),
+    "Header row": ("Ligne d'en-tête", "表头行"),
+    "White background": ("Fond blanc", "白色底"),
+    "Double-click a cell to type · Tab = next cell · Enter = cell below · Shift+Enter = new line · drag the white dots on the lines to resize columns and rows · right-click for more":
+        ("Double-clic sur une case pour écrire · Tab = case suivante · Entrée = case du dessous · "
+         "Maj+Entrée = nouvelle ligne · tirez les points blancs des traits pour changer la largeur des colonnes "
+         "et la hauteur des lignes · clic droit pour plus",
+         "双击格子输入文字 · Tab = 下一格 · Enter = 下面一格 · Shift+Enter = 格内换行 · "
+         "拖动线上的白点可调列宽和行高 · 右键有更多操作"),
+    "Text size, font, bold and alignment apply to the whole table":
+        ("Taille, police, gras et alignement s'appliquent à tout le tableau", "字号、字体、加粗和对齐作用于整个表格"),
+    "Typing in the table  ·  Tab = next cell  ·  Enter = cell below  ·  Esc = done":
+        ("Saisie dans le tableau  ·  Tab = case suivante  ·  Entrée = case du dessous  ·  Échap = terminé",
+         "正在表格中输入  ·  Tab = 下一格  ·  Enter = 下面一格  ·  Esc = 完成"),
+    "Edit cell": ("Modifier la case", "编辑这一格"),
+    "Insert row above": ("Insérer une ligne au-dessus", "在上方插入行"),
+    "Insert row below": ("Insérer une ligne en dessous", "在下方插入行"),
+    "Insert column left": ("Insérer une colonne à gauche", "在左侧插入列"),
+    "Insert column right": ("Insérer une colonne à droite", "在右侧插入列"),
+    "Delete row": ("Supprimer la ligne", "删除行"),
+    "Delete column": ("Supprimer la colonne", "删除列"),
+    "Symbols": ("Symboles", "特殊符号"),
+    "Symbols…": ("Symboles…", "特殊符号…"),
+    "More symbols…": ("Plus de symboles…", "更多符号…"),
+    "Insert ✓ ✗ ★ → ⚠ ± ° Ø ≤ ≥ … into the text you are typing":
+        ("Insérer ✓ ✗ ★ → ⚠ ± ° Ø ≤ ≥ … dans le texte en cours", "在正在输入的文字里插入 ✓ ✗ ★ → ⚠ ± ° Ø ≤ ≥ …"),
+    "Any symbol of the symbol panel can be a stamp":
+        ("Tout symbole du panneau peut servir de tampon", "符号面板里的任何符号都可以当印章用"),
+    "Click a symbol: it goes into the text or table cell you are typing in,\notherwise it becomes the stamp (click on the screenshot to place it).":
+        ("Cliquez sur un symbole : il va dans le texte ou la case en cours de saisie,\n"
+         "sinon il devient le tampon (cliquez sur la capture pour le poser).",
+         "点一下符号：正在输入文字或表格时插入到光标处，\n否则作为印章使用（再点截图放置）。"),
+    "Click on the screenshot to place {sym}": ("Cliquez sur la capture pour poser {sym}", "点截图放置 {sym}"),
+    "Marks": ("Marques", "标记"),
+    "Arrows": ("Flèches", "箭头"),
+    "Engineering": ("Technique", "工程"),
+    "Maths": ("Maths", "数学"),
+    "Greek": ("Grec", "希腊字母"),
+    "Numbers": ("Numéros", "编号"),
     # ---------------------------------------------------------------- optional extra features
     "Extra features": ("Fonctions supplémentaires", "扩展功能"),
     "Pin to screen": ("Épingler à l'écran", "贴图置顶"),
@@ -654,8 +699,8 @@ SHORTCUTS_EN = (
     "F1                user guide\n\n"
     "Tools:  V select · P pen · H highlighter · L line · A arrow\n"
     "R rectangle · E ellipse · T text · C callout · N number\n"
-    "S stamp · B blur · D distance · M perimeter · G area\n"
-    "Q angle · K calibrate scale\n"
+    "S stamp · W table · B blur · D distance · M perimeter\n"
+    "G area · Q angle · K calibrate scale\n"
     "X eraser · F fill · I colour picker   ·   Ctrl+Shift+N blank canvas")
 
 
@@ -703,6 +748,8 @@ MultiCapture keeps every screenshot you take. Arrange several of them on one boa
 - Formatting in the TEXT section: font, size, Bold, Italic, Underline, alignment, background colour, border, text colour (COLOUR palette).
 - Double-click a text with the Select tool to edit it again; drag it to move it.
 - Move handle ✥: a blue round handle with a cross of arrows appears at the top-left corner of the text box while you type and whenever the text (or any annotation) is selected. Drag it to move the object – it works with every tool. The cursor turns into a four-way arrow over anything that can be moved.
+- Table (W): choose the number of rows and columns in the TABLE section, then drag on the image (or just click). Double-click a cell to type; Tab = next cell (in the last cell it adds a row), Enter = cell below, Shift+Enter = new line. Drag the white dots on the lines to change column widths and row heights; right-click a cell to insert or delete rows and columns. Line colour, width, font and size are set in the right panel.
+- Ω Symbols…: one click inserts ✓ ✗ ★ → ⚠ ± ° Ø ⌀ ≤ ≥ ① … into the text box or table cell you are typing in. When nothing is being typed, the symbol becomes the stamp.
 
 # 6. Measurement (like a PDF reader)
 - Distance (D): drag a line – the length is shown.
@@ -797,6 +844,8 @@ MultiCapture conserve toutes vos captures d'écran. Disposez-en plusieurs sur un
 - Mise en forme dans la section TEXTE : police, taille, Gras, Italique, Souligné, alignement, couleur de fond, bordure, couleur du texte (palette COULEUR).
 - Double-cliquez sur un texte avec l'outil Sélection pour le modifier ; glissez-le pour le déplacer.
 - Poignée de déplacement ✥ : une poignée ronde bleue avec une croix de flèches apparaît au coin supérieur gauche de la zone de texte pendant la saisie et dès que le texte (ou toute annotation) est sélectionné. Faites-la glisser pour déplacer l'objet – fonctionne avec tous les outils. Le curseur devient une flèche à quatre directions sur tout ce qui peut être déplacé.
+- Tableau (W) : choisissez le nombre de lignes et de colonnes dans la section TABLEAU, puis tracez sur l'image (ou cliquez). Double-cliquez sur une case pour écrire ; Tab = case suivante (dans la dernière case, ajoute une ligne), Entrée = case du dessous, Maj+Entrée = nouvelle ligne. Tirez les points blancs des traits pour changer la largeur des colonnes et la hauteur des lignes ; clic droit sur une case pour insérer ou supprimer des lignes et colonnes. Couleur, épaisseur, police et taille dans le panneau de droite.
+- Ω Symboles… : un clic insère ✓ ✗ ★ → ⚠ ± ° Ø ⌀ ≤ ≥ ① … dans la zone de texte ou la case en cours de saisie. Si rien n'est en cours de saisie, le symbole devient le tampon.
 
 # 6. Mesure (comme un lecteur PDF)
 - Distance (D) : tracez une ligne – la longueur s'affiche.
@@ -891,6 +940,8 @@ MultiCapture 会保留你截的每一张图。可以把多张截图放在同一�
 - 「文字」区域可设置格式：字体、字号、粗体、斜体、下划线、对齐方式、背景色、边框；文字颜色在「颜色」调色板中选择。
 - 用「选择」工具双击文字可再次编辑；拖动即可移动位置。
 - 移动手柄 ✥：输入文字时，以及选中文字（或任何标注）后，文本框左上角会出现一个带十字箭头的蓝色圆形手柄。拖动它即可移动对象，任何工具下都可以用。鼠标移到可移动的对象上时，光标会变成四向箭头。
+- 表格（W）：在右侧「表格」区选好行数和列数，然后在图上拖出表格（或直接点一下）。双击格子输入文字；Tab = 下一格（在最后一格按 Tab 会自动加一行），Enter = 下面一格，Shift+Enter = 格内换行。拖动线上的白点可调整列宽和行高；右键格子可插入或删除行和列。线条颜色、粗细、字体和字号在右侧面板设置。
+- Ω 特殊符号…：点一下就把 ✓ ✗ ★ → ⚠ ± ° Ø ⌀ ≤ ≥ ① … 插入到正在输入的文本框或表格格子里。没有在输入时，点的符号会变成印章。
 
 # 6. 测量（类似 PDF 阅读器）
 - 距离（D）：拖出一条线，显示长度。

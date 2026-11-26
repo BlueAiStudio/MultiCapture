@@ -180,6 +180,14 @@ PALETTE = ["#E53935", "#FB8C00", "#FDD835", "#43A047", "#00ACC1", "#1E88E5",
 VIEW_MODES = [("Single", 1), ("2×2", 4), ("3×3", 9), ("4×4", 16), ("All", 0)]
 STAMPS = ["✔", "✘", "★", "!", "?", "⚠", "●", "➜", "♥", "✚"]
 UNITS = ["mm", "cm", "m", "µm", "in", "ft"]
+SYMBOL_GROUPS = [
+    ("Marks", "✓✔✗✘★☆●○■□▲△◆◇⚠❗❓♥✚☐☑☒"),
+    ("Arrows", "→←↑↓↔↕⇒⇐⇔↗↘↙↖↺↻➜"),
+    ("Engineering", "°′″Ø⌀∠⊥∥⏤⌓⌒◎⌖⌭⌯▱±℃℉Ωµ‰№"),
+    ("Maths", "±×÷≈≠≡≤≥≪≫∞√∑∫∂∆∝∈∩∪½¼¾²³"),
+    ("Greek", "αβγδεθλμπρστφωΔΣΦΨΩ"),
+    ("Numbers", "①②③④⑤⑥⑦⑧⑨⑩⑪⑫❶❷❸❹❺❻ⒶⒷⒸⒹ"),
+]
 
 TOOLS = [
     ("select", "Select / move / resize  (V)", "v"),
@@ -196,6 +204,7 @@ TOOLS = [
     ("marker", "Numbered marker  (N)", "n"),
     ("stamp", "Stamp / symbol  (S)", "s"),
     ("mosaic", "Blur / pixelate area  (B)", "b"),
+    ("table", "Table  (W)  - drag to place it, double-click a cell to type", "w"),
     None,
     ("eraser", "Eraser  (X)  - rubs out annotations, never the screenshot itself", "x"),
     ("fill", "Fill with colour  (F)  - fills an area of the same colour, like Paint", "f"),
@@ -213,7 +222,7 @@ TOOL_NAMES = {"select": "Select", "pen": "Pen", "highlight": "Highlighter", "lin
               "callout": "Callout", "marker": "Numbered marker", "stamp": "Stamp",
               "mosaic": "Blur", "dist": "Distance", "perim": "Perimeter", "area": "Area",
               "angle": "Angle", "calib": "Scale reference", "eraser": "Eraser", "fill": "Fill",
-              "picker": "Colour picker", "crop": "Crop"}
+              "picker": "Colour picker", "crop": "Crop", "table": "Table"}
 
 DEFAULT_SETTINGS = {
     "autocopy": True, "include_notes": True, "autosave": False, "save_dir": DEFAULT_SAVE_DIR,
@@ -227,6 +236,7 @@ DEFAULT_SETTINGS = {
     "open_after_save": False, "theme": "default", "theme_frame": True, "theme_random": False,
     "feat_pin": False, "feat_ocr": False, "feat_scroll": False, "feat_record": False,
     "ocr_lang": "", "rec_fps": 10, "rec_format": "mp4", "rec_mic": False, "rec_system": False,
+    "table_rows": 3, "table_cols": 2, "table_header": True, "table_bg": True,
 }
 
 # --------------------------------------------------------------------------- fonts
@@ -321,6 +331,27 @@ def symbol_font(size):
 
 def needs_cjk(text):
     return any(ord(ch) >= 0x2E80 for ch in text)
+
+
+_glyph_cache = {}
+
+
+def glyph_ok(ch):
+    """False when the font used to draw ch has no picture for it (it would print as an empty box).
+    Only checked when the Windows fonts are there; elsewhere every symbol is offered."""
+    if ch in _glyph_cache:
+        return _glyph_cache[ch]
+    ok = True
+    if os.path.exists(os.path.join(FONTS_DIR, "seguisym.ttf")):
+        font = (pil_font("Microsoft YaHei", 24)[0] if needs_cjk(ch) else
+                symbol_font(24) if is_symbol(ch) else pil_font("Segoe UI", 24)[0])
+        try:
+            m, miss = font.getmask(ch), font.getmask("\U0010FFFD")
+            ok = m.size != miss.size or bytes(m) != bytes(miss)
+        except Exception:
+            ok = True
+    _glyph_cache[ch] = ok
+    return ok
 
 
 # --------------------------------------------------------------------------- colours
@@ -540,6 +571,38 @@ def round_caps(d, pts, color, w):
 
 
 # --------------------------------------------------------------------------- text layout
+def is_symbol(ch):
+    """Arrows, maths, technical signs, shapes, dingbats, circled numbers, emoji: drawn with the symbol font,
+    because the text fonts (Segoe UI, Arial ...) do not have them and would print empty boxes."""
+    o = ord(ch)
+    return 0x2100 <= o <= 0x2BFF or 0x1F000 <= o <= 0x1FAFF
+
+
+def text_runs(line, font):
+    """Splits one line into [(text, font)] runs, symbols in the symbol font."""
+    if not any(is_symbol(ch) for ch in line):
+        return [(line, font)]
+    sym = symbol_font(getattr(font, "size", 16))
+    runs = []
+    for ch in line:
+        f = sym if is_symbol(ch) else font
+        if runs and runs[-1][1] is f:
+            runs[-1] = (runs[-1][0] + ch, f)
+        else:
+            runs.append((ch, f))
+    return runs
+
+
+def runs_length(runs):
+    return sum(f.getlength(t) for t, f in runs)
+
+
+def draw_runs(d, x, baseline, runs, fill, stroke=0):
+    for t, f in runs:
+        d.text((x, baseline), t, font=f, fill=fill, anchor="ls", stroke_width=stroke, stroke_fill=fill)
+        x += f.getlength(t)
+
+
 def text_layout(o, s):
     fam = o.get("family", "Segoe UI")
     if needs_cjk(o.get("text", "")) and fam not in CJK_FAMILIES:
@@ -548,13 +611,14 @@ def text_layout(o, s):
     lines = o.get("text", "").split("\n")
     asc, desc = font.getmetrics()
     lh = (asc + desc) * 1.12
-    widths = [font.getlength(l) for l in lines]
+    runs = [text_runs(l, font) for l in lines]
+    widths = [runs_length(r) for r in runs]
     tw = max(widths + [o["size"] * s * 0.5])
     pad = max(2.0, o["size"] * s * 0.28)
     H = lh * len(lines) + 2 * pad
     extra = (0.2 * H if si else 0) + (2 if sb else 0)
     W = tw + 2 * pad + extra
-    return {"font": font, "sb": sb, "si": si, "lines": lines, "asc": asc, "lh": lh,
+    return {"font": font, "sb": sb, "si": si, "lines": lines, "runs": runs, "asc": asc, "lh": lh,
             "widths": widths, "tw": tw, "pad": pad, "W": W, "H": H}
 
 
@@ -573,7 +637,7 @@ def render_text_layer(o, s, L):
         x = pad + ((tw - L["widths"][i]) / 2 if al == "center" else (tw - L["widths"][i]) if al == "right" else 0)
         y = pad + i * lh
         if line:
-            dt.text((x, y), line, font=L["font"], fill=o["color"], stroke_width=sw, stroke_fill=o["color"])
+            draw_runs(dt, x, y + L["asc"], L["runs"][i], o["color"], sw)
             if o.get("underline"):
                 uy = y + L["asc"] + max(1, o["size"] * s * 0.07)
                 dt.line((x, uy, x + L["widths"][i], uy), fill=o["color"],
@@ -725,7 +789,8 @@ def d_marker(img, o, s, tf, sc):
 
 def d_stamp(img, o, s, tf, sc):
     x, y = tf(o["x"], o["y"])
-    font = symbol_font(o["size"] * 1.6 * s)
+    font = (pil_font("Microsoft YaHei", o["size"] * 1.6 * s)[0] if needs_cjk(o["sym"])
+            else symbol_font(o["size"] * 1.6 * s))
     ImageDraw.Draw(img).text((x, y), o["sym"], font=font, fill=o["color"], anchor="mm",
                              stroke_width=max(1, round(o["size"] * s / 12)), stroke_fill="#FFFFFF")
 
@@ -816,6 +881,208 @@ def d_angle(img, o, s, tf, sc):
                    f"{angle_of(o['pts']):.1f}°", o["color"], o.get("fs", 14) * s)
 
 
+# --------------------------------------------------------------------------- tables
+TABLE_MAX = 30          # rows / columns
+SKIP_CELL = [None]      # (object id, row, col) of the cell being typed in: its text is drawn by the editor
+
+
+def new_table_cells(rows, cols):
+    return [["" for _ in range(cols)] for _ in range(rows)]
+
+
+def table_edges(o):
+    """x positions of the column lines and y positions of the row lines (image pixels)."""
+    x0, y0, x1, y1 = norm_box(o["box"])
+    xs, ys = [x0], [y0]
+    for f in o["cw"]:
+        xs.append(xs[-1] + f * (x1 - x0))
+    for f in o["rh"]:
+        ys.append(ys[-1] + f * (y1 - y0))
+    xs[-1], ys[-1] = x1, y1
+    return xs, ys
+
+
+def table_cell_at(o, x, y):
+    """(row, col) of the cell under the point, or None."""
+    xs, ys = table_edges(o)
+    if not (xs[0] <= x <= xs[-1] and ys[0] <= y <= ys[-1]):
+        return None
+    c = max(0, min(len(xs) - 2, next((i for i in range(len(xs) - 1) if x <= xs[i + 1]), len(xs) - 2)))
+    r = max(0, min(len(ys) - 2, next((i for i in range(len(ys) - 1) if y <= ys[i + 1]), len(ys) - 2)))
+    return r, c
+
+
+def table_cell_box(o, r, c):
+    xs, ys = table_edges(o)
+    return xs[c], ys[r], xs[c + 1], ys[r + 1]
+
+
+def _norm_fracs(fr):
+    t = sum(fr) or 1
+    return [f / t for f in fr]
+
+
+def table_set_size(o, rows, cols):
+    """Adds / removes rows and columns at the end, keeping the text that is still inside."""
+    rows = max(1, min(TABLE_MAX, int(rows)))
+    cols = max(1, min(TABLE_MAX, int(cols)))
+    R, C = len(o["rh"]), len(o["cw"])
+    if (rows, cols) == (R, C):
+        return False
+    x0, y0, x1, y1 = norm_box(o["box"])
+    cwp = [f * (x1 - x0) for f in o["cw"]]
+    rhp = [f * (y1 - y0) for f in o["rh"]]
+    cwp = cwp[:cols] + [sum(cwp) / C] * (cols - C)        # new ones as wide as the average: the table grows
+    rhp = rhp[:rows] + [sum(rhp) / R] * (rows - R)
+    o["box"] = [x0, y0, x0 + sum(cwp), y0 + sum(rhp)]
+    o["cw"], o["rh"] = _norm_fracs(cwp), _norm_fracs(rhp)
+    cells = [row[:cols] + [""] * (cols - len(row[:cols])) for row in o["cells"][:rows]]
+    cells += new_table_cells(rows - len(cells), cols)
+    o["cells"] = cells
+    return True
+
+
+def table_insert(o, axis, i):
+    """Inserts an empty row (axis "row") or column ("col") before index i; the table grows by that size."""
+    x0, y0, x1, y1 = norm_box(o["box"])
+    if axis == "row":
+        if len(o["rh"]) >= TABLE_MAX:
+            return False
+        hp = [f * (y1 - y0) for f in o["rh"]]
+        i = max(0, min(len(hp), i))
+        hp.insert(i, hp[min(i, len(hp) - 1)])
+        o["rh"] = _norm_fracs(hp)
+        o["box"] = [x0, y0, x1, y0 + sum(hp)]
+        o["cells"].insert(i, [""] * len(o["cw"]))
+    else:
+        if len(o["cw"]) >= TABLE_MAX:
+            return False
+        wp = [f * (x1 - x0) for f in o["cw"]]
+        i = max(0, min(len(wp), i))
+        wp.insert(i, wp[min(i, len(wp) - 1)])
+        o["cw"] = _norm_fracs(wp)
+        o["box"] = [x0, y0, x0 + sum(wp), y1]
+        for row in o["cells"]:
+            row.insert(i, "")
+    return True
+
+
+def table_delete(o, axis, i):
+    """Removes row / column i; the table shrinks by its size. The last row / column cannot be removed."""
+    x0, y0, x1, y1 = norm_box(o["box"])
+    if axis == "row":
+        if len(o["rh"]) <= 1 or not 0 <= i < len(o["rh"]):
+            return False
+        hp = [f * (y1 - y0) for f in o["rh"]]
+        hp.pop(i)
+        o["rh"] = _norm_fracs(hp)
+        o["box"] = [x0, y0, x1, y0 + sum(hp)]
+        o["cells"].pop(i)
+    else:
+        if len(o["cw"]) <= 1 or not 0 <= i < len(o["cw"]):
+            return False
+        wp = [f * (x1 - x0) for f in o["cw"]]
+        wp.pop(i)
+        o["cw"] = _norm_fracs(wp)
+        o["box"] = [x0, y0, x0 + sum(wp), y1]
+        for row in o["cells"]:
+            row.pop(i)
+    return True
+
+
+def table_font(o, text, s=1.0):
+    fam = o.get("family", "Segoe UI")
+    if needs_cjk(text) and fam not in CJK_FAMILIES:
+        fam = "Microsoft YaHei"
+    return pil_font(fam, o["size"] * s, o.get("bold") or False, o.get("italic") or False)
+
+
+def table_header_row(o, r):
+    """True for the first row when the table has a header row (drawn bold, tinted)."""
+    return bool(o.get("header")) and r == 0 and len(o["rh"]) > 1
+
+
+def table_cell_need(o, text, bold=False):
+    """Width and height (image pixels) a cell needs to show its text."""
+    font = table_font(dict(o, bold=o.get("bold") or bold), text)[0]
+    asc, desc = font.getmetrics()
+    lines = text.split("\n")
+    pad = max(2.0, o["size"] * 0.35)
+    w = max(runs_length(text_runs(l, font)) for l in lines) + 2 * pad + 2
+    return w, (asc + desc) * 1.12 * len(lines) + 2 * pad
+
+
+def table_fit(o):
+    """Makes columns wider / rows taller where the text does not fit (never smaller)."""
+    x0, y0, x1, y1 = norm_box(o["box"])
+    wp = [f * (x1 - x0) for f in o["cw"]]
+    hp = [f * (y1 - y0) for f in o["rh"]]
+    grew = False
+    for r, row in enumerate(o["cells"]):
+        for c, txt in enumerate(row):
+            if not txt:
+                continue
+            nw, nh = table_cell_need(o, txt, table_header_row(o, r))
+            if nw > wp[c] + 0.5:
+                wp[c], grew = nw, True
+            if nh > hp[r] + 0.5:
+                hp[r], grew = nh, True
+    if grew:
+        o["cw"], o["rh"] = _norm_fracs(wp), _norm_fracs(hp)
+        o["box"] = [x0, y0, x0 + sum(wp), y0 + sum(hp)]
+    return grew
+
+
+def make_table(box, rows, cols, **kw):
+    o = {"type": "table", "box": norm_box(box), "cw": [1 / cols] * cols, "rh": [1 / rows] * rows,
+         "cells": new_table_cells(rows, cols), "header": True, "bg": "#FFFFFF"}
+    o.update(kw)
+    return o
+
+
+def d_table(img, o, s, tf, sc):
+    xs, ys = table_edges(o)
+    cx = [tf(x, ys[0])[0] for x in xs]
+    cy = [tf(xs[0], y)[1] for y in ys]
+    w = _lw(o, s)
+    if o.get("bg"):
+        col = rgba(o["bg"], o.get("bg_alpha", 92) * 2.55)
+        blend_draw(img, (cx[0], cy[0], cx[-1], cy[-1]),
+                   lambda d, a, b: d.rectangle((cx[0] - a, cy[0] - b, cx[-1] - a, cy[-1] - b), fill=col))
+    if table_header_row(o, 0):
+        col = rgba(o["color"], 38)
+        blend_draw(img, (cx[0], cy[0], cx[-1], cy[1]),
+                   lambda d, a, b: d.rectangle((cx[0] - a, cy[0] - b, cx[-1] - a, cy[1] - b), fill=col))
+    d = ImageDraw.Draw(img)
+    skip = SKIP_CELL[0]
+    al = o.get("align", "left")
+    for r, row in enumerate(o["cells"]):
+        for c, txt in enumerate(row):
+            if not txt or (skip and skip[0] == o.get("id") and skip[1:] == (r, c)):
+                continue
+            bold = o.get("bold") or table_header_row(o, r)
+            font, sb, _ = table_font(dict(o, bold=bold), txt, s)
+            asc, desc = font.getmetrics()
+            lh = (asc + desc) * 1.12
+            lines = txt.split("\n")
+            pad = max(2.0, o["size"] * s * 0.35)
+            y = (cy[r] + cy[r + 1]) / 2 - lh * len(lines) / 2
+            for line in lines:
+                runs = text_runs(line, font)
+                lw = runs_length(runs)
+                x = (cx[c] + pad if al == "left" else cx[c + 1] - pad - lw if al == "right"
+                     else (cx[c] + cx[c + 1] - lw) / 2)
+                draw_runs(d, x, y + asc, runs, o["color"], max(1, round(o["size"] * s / 28)) if sb else 0)
+                y += lh
+    if o.get("width", 2) > 0:
+        for x in cx:
+            d.line((x, cy[0], x, cy[-1]), fill=o["color"], width=w)
+        for y in cy:
+            d.line((cx[0], y, cx[-1], y), fill=o["color"], width=w)
+        h = w / 2
+        d.rectangle((cx[0] - h, cy[0] - h, cx[-1] + h, cy[-1] + h), outline=o["color"], width=w)
+
+
 def d_fill(img, o, s, tf, sc):
     paint.draw_fill(img, o, s, tf)
 
@@ -823,7 +1090,7 @@ def d_fill(img, o, s, tf, sc):
 DRAWERS = {"fill": d_fill, "pen": d_pen, "highlight": d_highlight, "line": d_line, "arrow": d_arrow,
            "rect": d_shape, "ellipse": d_shape, "mosaic": d_mosaic, "text": draw_text_obj,
            "marker": d_marker, "stamp": d_stamp, "dist": d_dist, "calib": d_dist,
-           "perim": d_perim, "area": d_area, "angle": d_angle}
+           "perim": d_perim, "area": d_area, "angle": d_angle, "table": d_table}
 
 
 # --------------------------------------------------------------------------- object geometry
@@ -836,7 +1103,7 @@ def obj_bbox(o):
         m = o.get("width", 2) * (1.5 if t == "highlight" else 0.5)
         xs, ys = [p[0] for p in pts], [p[1] for p in pts]
         return [min(xs) - m, min(ys) - m, max(xs) + m, max(ys) + m]
-    if t in ("rect", "ellipse", "mosaic"):
+    if t in ("rect", "ellipse", "mosaic", "table"):
         return norm_box(o["box"])
     if t == "text":
         L = text_layout(o, 1)
@@ -908,6 +1175,11 @@ def _base_handles(o):
     if t in ("rect", "ellipse", "mosaic"):
         x0, y0, x1, y1 = o["box"]
         return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+    if t == "table":    # 4 corners, then one handle on each inner column line (top) and row line (left)
+        x0, y0, x1, y1 = norm_box(o["box"])
+        xs, ys = table_edges(o)
+        return ([(x0, y0), (x1, y0), (x1, y1), (x0, y1)] + [(x, y0) for x in xs[1:-1]]
+                + [(x0, y) for y in ys[1:-1]])
     if t in ("line", "arrow", "dist", "calib"):
         return [tuple(p) for p in o["p"]]
     if t in ("perim", "area", "angle"):
@@ -917,8 +1189,31 @@ def _base_handles(o):
     return []
 
 
+def set_table_handle(o, i, x, y):
+    if i < 4:                           # corner: like a rectangle
+        b = o["box"]
+        b[0 if i in (0, 3) else 2] = x
+        b[1 if i in (0, 1) else 3] = y
+        return
+    xs, ys = table_edges(o)
+    k = i - 4
+    if k < len(xs) - 2:                 # inner column line k+1: only its two neighbouring columns change
+        edges, pos, key = list(xs), x, "cw"
+    else:
+        k -= len(xs) - 2
+        edges, pos, key = list(ys), y, "rh"
+    lo, hi, total = edges[k] + 6, edges[k + 2] - 6, edges[-1] - edges[0]
+    if lo >= hi or total <= 0:
+        return
+    edges[k + 1] = max(lo, min(hi, pos))
+    o[key] = [(edges[n + 1] - edges[n]) / total for n in range(len(edges) - 1)]
+
+
 def set_handle(o, i, x, y):
     t = o["type"]
+    if t == "table":
+        set_table_handle(o, i, x, y)
+        return
     if o.get("solid") and t in solid3d.SOLID_TYPES and i == len(_base_handles(o)):
         solid3d.set_solid_handle(o, x, y)
         return
@@ -1122,6 +1417,12 @@ def tool_icon_image(key, color="#374151", accent="#2563EB"):
         d.line((14, 80, 86, 80), fill=c, width=6)
         d.line((14, 80, 66, 18), fill=c, width=6)
         d.arc((-22, 44, 50, 116), -50, 0, fill=acc, width=7)
+    elif key == "table":
+        d.rectangle((10, 18, 86, 78), outline=c, width=6)
+        d.rectangle((13, 21, 83, 38), fill=acc[:3] + (110,))
+        d.line((10, 38, 86, 38), fill=c, width=5)
+        d.line((10, 58, 86, 58), fill=c, width=5)
+        d.line((40, 18, 40, 78), fill=c, width=5)
     elif key == "calib":
         d.rounded_rectangle((6, 32, 90, 64), radius=6, outline=c, width=6)
         for i, x in enumerate(range(18, 86, 10)):
@@ -1283,6 +1584,43 @@ class RegionSelector:
 
 
 # --------------------------------------------------------------------------- dialogs
+class SymbolPanel(tk.Toplevel):
+    """Small floating window: one click inserts a symbol into the text being typed, or makes it the stamp."""
+
+    def __init__(self, app):
+        super().__init__(app.root)
+        self.app = app
+        self.title(tr("Symbols"))
+        self.configure(bg=PANEL)
+        self.resizable(False, False)
+        self.transient(app.root)
+        try:
+            self.attributes("-toolwindow", True)
+        except tk.TclError:
+            pass
+        wrap = tk.Frame(self, bg=PANEL)
+        wrap.pack(padx=10, pady=8)
+        tk.Label(wrap, text=tr("Click a symbol: it goes into the text or table cell you are typing in,\n"
+                               "otherwise it becomes the stamp (click on the screenshot to place it)."),
+                 bg=PANEL, fg=MUTED, font=UI_S, justify="left").pack(anchor="w", pady=(0, 4))
+        for name, syms in SYMBOL_GROUPS:
+            tk.Label(wrap, text=tr(name).upper(), bg=PANEL, fg=MUTED, font=UI_H).pack(anchor="w", pady=(6, 2))
+            g = tk.Frame(wrap, bg=PANEL)
+            g.pack(anchor="w")
+            n = 0
+            for ch in syms:
+                if not glyph_ok(ch):
+                    continue
+                b = FlatButton(g, ch, lambda c=ch: app.insert_symbol(c), font=("Segoe UI Symbol", 13), padx=0, pady=0,
+                               bg=BTN, hover=BTN_H, width=2)
+                b.grid(row=n // 12, column=n % 12, padx=1, pady=1)
+                n += 1
+        x = app.root.winfo_rootx() + app.root.winfo_width() - int(560 * app.k)
+        y = app.root.winfo_rooty() + int(120 * app.k)
+        self.geometry(f"+{max(0, x)}+{max(0, y)}")
+        self.bind("<Escape>", lambda e: self.destroy())
+
+
 class ScaleDialog(tk.Toplevel):
     """Ask for a real-world length (calibration) or a direct 'unit per pixel' value."""
 
@@ -1964,6 +2302,12 @@ class App:
         self.border = tk.BooleanVar(value=st["border"])
         self.stamp = tk.StringVar(value=st["stamp"])
         self.decimals = tk.IntVar(value=st["decimals"])
+        self.table_rows = tk.IntVar(value=st.get("table_rows", 3))
+        self.table_cols = tk.IntVar(value=st.get("table_cols", 2))
+        self.tbl_header_var = tk.BooleanVar(value=st.get("table_header", True))
+        self.tbl_bg_var = tk.BooleanVar(value=st.get("table_bg", True))
+        self.cell_edit = None     # table cell being typed in: {"obj", "r", "c", "w" (Text), "win", "before"}
+        self.sym_win = None       # symbol panel
 
         self._build_ui()
         self._load_history()
@@ -2340,13 +2684,41 @@ class App:
             self.fmt_btns["al_" + al] = b
         r3 = tk.Frame(self.sec_text, bg=PANEL)
         r3.pack(fill="x", pady=(6, 0))
+        self.text_r3 = r3
         ttk.Checkbutton(r3, text=tr("Background"), variable=self.tbg_on, command=lambda: self.on_prop("tbg")).pack(side="left")
         self.tbg_sw = tk.Label(r3, bg=self.tbg_color, width=3, relief="solid", bd=1, cursor="hand2")
         self.tbg_sw.pack(side="left", padx=6)
         self.tbg_sw.bind("<Button-1>", lambda e: self.pick_tbg())
         ttk.Checkbutton(r3, text=tr("Border"), variable=self.border, command=lambda: self.on_prop("border")).pack(side="left", padx=6)
-        tk.Label(self.sec_text, text=tr("Double-click a text to edit it · drag to move"), bg=PANEL, fg=MUTED,
-                 font=UI_S, wraplength=int(265 * self.k), justify="left").pack(anchor="w", pady=(4, 0))
+        r4 = tk.Frame(self.sec_text, bg=PANEL)
+        r4.pack(fill="x", pady=(6, 0))
+        FlatButton(r4, "Ω  " + tr("Symbols…"), self.show_symbols, padx=6, pady=2, font=UI_S, bg=BTN, hover=BTN_H,
+                   tip=tr("Insert ✓ ✗ ★ → ⚠ ± ° Ø ≤ ≥ … into the text you are typing")).pack(side="left")
+        self.text_hint = tk.Label(self.sec_text, text=tr("Double-click a text to edit it · drag to move"), bg=PANEL,
+                                  fg=MUTED, font=UI_S, wraplength=int(265 * self.k), justify="left")
+        self.text_hint.pack(anchor="w", pady=(4, 0))
+
+        # table
+        self.sec_table = self._section(P, "TABLE")
+        tr1 = tk.Frame(self.sec_table, bg=PANEL)
+        tr1.pack(fill="x")
+        for lbl, var in ((tr("Rows"), self.table_rows), (tr("Columns"), self.table_cols)):
+            tk.Label(tr1, text=lbl, bg=PANEL, fg=MUTED, font=UI_S).pack(side="left", padx=(0, 3))
+            sp = ttk.Spinbox(tr1, from_=1, to=TABLE_MAX, textvariable=var, width=4,
+                             command=lambda: self.on_prop("table_size"))
+            sp.pack(side="left", padx=(0, 10))
+            sp.bind("<Return>", lambda e: (self.on_prop("table_size"), self._refocus()))
+            sp.bind("<FocusOut>", lambda e: self.on_prop("table_size"))
+        tr2 = tk.Frame(self.sec_table, bg=PANEL)
+        tr2.pack(fill="x", pady=(6, 0))
+        ttk.Checkbutton(tr2, text=tr("Header row"), variable=self.tbl_header_var,
+                        command=lambda: self.on_prop("table_header")).pack(side="left")
+        ttk.Checkbutton(tr2, text=tr("White background"), variable=self.tbl_bg_var,
+                        command=lambda: self.on_prop("table_bg")).pack(side="left", padx=8)
+        tk.Label(self.sec_table, text=tr("Double-click a cell to type · Tab = next cell · Enter = cell below · "
+                                         "Shift+Enter = new line · drag the white dots on the lines to resize "
+                                         "columns and rows · right-click for more"),
+                 bg=PANEL, fg=MUTED, font=UI_S, wraplength=int(265 * self.k), justify="left").pack(anchor="w", pady=(4, 0))
 
         # size (markers / stamps / measurement labels)
         self.sec_size = self._section(P, "SIZE")
@@ -2365,6 +2737,8 @@ class App:
                            bg=BTN, hover=BTN_H)
             b.grid(row=i // 5, column=i % 5, padx=1, pady=1)
             self.stamp_btns[sym] = b
+        FlatButton(self.sec_stamp, "Ω  " + tr("More symbols…"), self.show_symbols, padx=6, pady=2, font=UI_S,
+                   bg=BTN, hover=BTN_H, tip=tr("Any symbol of the symbol panel can be a stamp")).pack(anchor="w", pady=(4, 0))
 
         # measure
         self.sec_measure = self._section(P, "MEASURE")
@@ -3041,6 +3415,7 @@ class App:
             self.sel = self.items[min(idx, len(self.items) - 1)] if self.items else None
             self.sel_obj = None
             self.editing = None
+            self._drop_cell_edit()
         self._rebuild_list()
         if self.sel:
             self.select_item(self.sel)
@@ -3187,6 +3562,8 @@ class App:
         objs = list(it["objs"])
         if self.building:
             objs.append(self.building)
+        ce = self.cell_edit
+        SKIP_CELL[0] = (ce["obj"].get("id"), ce["r"], ce["c"]) if ce else None
         draw_objects(img, objs, s, ix0, iy0, self.scale_of(it), skip_id=self.editing["id"] if self.editing else None)
         self._photo = ImageTk.PhotoImage(img)
         px, py = (ix0 - self.vx) * s, (iy0 - self.vy) * s
@@ -3206,6 +3583,9 @@ class App:
         if self.editing and self.edit_win:
             self._place_editor()
             c.tag_raise("editor")
+        if self.cell_edit:
+            self._place_cell_editor()
+            c.tag_raise("celleditor")
 
     def _draw_selection(self):
         self._grip = None
@@ -3453,23 +3833,29 @@ class App:
             "sec_sel": True,
             "sec_color": kind not in ("mosaic", "eraser", "crop"),
             "sec_stroke": kind in ("pen", "highlight", "line", "arrow", "rect", "ellipse", "mosaic", "dist", "calib",
-                                   "perim", "area", "angle", "callout", "eraser")
+                                   "perim", "area", "angle", "callout", "eraser", "table")
             or (kind == "text" and o and o.get("leader")),
             "sec_fill": kind in ("rect", "ellipse", "area"),
             "sec_solid": bool(o) and kind in solid3d.SOLID_TYPES,
-            "sec_text": kind in ("text", "callout"),
+            "sec_text": kind in ("text", "callout", "table"),
+            "sec_table": kind == "table",
             "sec_size": kind in ("marker", "stamp", "dist", "calib", "perim", "area", "angle"),
             "sec_stamp": kind == "stamp",
             "sec_measure": kind in ("dist", "calib", "perim", "area", "angle") or kind == "select",
             "sec_image": kind in ("select", "crop") and not o,
         }
-        names = ("sec_sel", "sec_color", "sec_stroke", "sec_fill", "sec_solid", "sec_text", "sec_size", "sec_stamp",
-                 "sec_measure", "sec_image")
+        names = ("sec_sel", "sec_color", "sec_stroke", "sec_fill", "sec_solid", "sec_text", "sec_table", "sec_size",
+                 "sec_stamp", "sec_measure", "sec_image")
         for name in names:
             getattr(self, name).pack_forget()
         for name in names:
             if show[name]:
                 getattr(self, name).pack(fill="x")
+        self.text_r3.pack_forget()       # background / border: text boxes only (tables have their own)
+        if kind != "table":
+            self.text_r3.pack(fill="x", pady=(6, 0), before=self.text_hint)
+        self.text_hint.configure(text=tr("Text size, font, bold and alignment apply to the whole table")
+                                 if kind == "table" else tr("Double-click a text to edit it · drag to move"))
         self._refresh_swatches()
         self._refresh_fmt_btns()
         if show["sec_solid"]:
@@ -3587,7 +3973,13 @@ class App:
         st.update(width=self._w(), fill_on=self.fill_on.get(), fill_color=self.fill_color, fill_alpha=self.fill_alpha.get(),
                   family=self.family.get(), fsize=self._fs(), bold=self.bold.get(), italic=self.italic.get(),
                   underline=self.underline.get(), align=self.align.get(), tbg_on=self.tbg_on.get(),
-                  tbg_color=self.tbg_color, border=self.border.get(), stamp=self.stamp.get())
+                  tbg_color=self.tbg_color, border=self.border.get(), stamp=self.stamp.get(),
+                  table_header=self.tbl_header_var.get(), table_bg=self.tbl_bg_var.get())
+        try:
+            st.update(table_rows=max(1, min(TABLE_MAX, int(self.table_rows.get()))),
+                      table_cols=max(1, min(TABLE_MAX, int(self.table_cols.get()))))
+        except (ValueError, tk.TclError):
+            pass
         o = self.sel_obj
         if not o or not self.sel or self.view_n() != 1 or o not in self.sel["objs"]:
             return
@@ -3613,6 +4005,9 @@ class App:
                 o["size"] = self._fs()
             elif t in ("marker", "stamp"):
                 o["size"] = self._fs()
+            elif t == "table":
+                o["size"] = self._fs()
+                table_fit(o)
             elif t in ("dist", "calib", "perim", "area", "angle"):
                 o["fs"] = max(8, round(self._fs() * 0.7))
         elif t == "text" and key in ("family", "bold", "italic", "underline", "align", "tbg", "border"):
@@ -3623,6 +4018,20 @@ class App:
             o["border"] = self.border.get()
         elif key == "stamp" and t == "stamp":
             o["sym"] = self.stamp.get()
+        elif t == "table" and key in ("family", "bold", "italic", "align"):
+            o["family"] = self.family.get()
+            o["bold"], o["italic"] = self.bold.get(), self.italic.get()
+            o["align"] = self.align.get()
+            table_fit(o)
+        elif t == "table" and key == "table_size":
+            self.commit_edit()
+            table_set_size(o, st["table_rows"], st["table_cols"])
+            table_fit(o)
+        elif t == "table" and key == "table_header":
+            o["header"] = self.tbl_header_var.get()
+            table_fit(o)
+        elif t == "table" and key == "table_bg":
+            o["bg"] = "#FFFFFF" if self.tbl_bg_var.get() else None
         if json.dumps(o, sort_keys=True) == before:
             return
         lid, lkey, lt = self._last_prop
@@ -3631,6 +4040,8 @@ class App:
         self._last_prop = (o["id"], key, time.time())
         if self.editing is o:
             self._style_editor()
+        if self.cell_edit and self.cell_edit["obj"] is o:
+            self._style_cell_editor()
         self.changed()
 
     def _load_props(self, o):
@@ -3664,6 +4075,16 @@ class App:
                 self.fsize.set(int(round(o["size"])))
             if o["type"] == "stamp":
                 self.stamp.set(o["sym"])
+            if o["type"] == "table":
+                self.family.set(o.get("family", "Segoe UI"))
+                self.fsize.set(int(round(o["size"])))
+                self.bold.set(o.get("bold", False))
+                self.italic.set(o.get("italic", False))
+                self.align.set(o.get("align", "left"))
+                self.table_rows.set(len(o["rh"]))
+                self.table_cols.set(len(o["cw"]))
+                self.tbl_header_var.set(bool(o.get("header")))
+                self.tbl_bg_var.set(bool(o.get("bg")))
         finally:
             self._loading = False
 
@@ -4073,6 +4494,7 @@ class App:
             self._style_editor()
 
     def commit_edit(self):
+        self.commit_cell()
         o, t = self.editing, self.edit_widget
         if not o:
             return
@@ -4102,6 +4524,167 @@ class App:
             o["text"] = txt
         self.canvas.focus_set()
         self.changed()
+
+    # ===================================================================== tables
+    def _new_table(self, x, y):
+        rows = max(1, min(TABLE_MAX, int(self.st.get("table_rows", 3))))
+        cols = max(1, min(TABLE_MAX, int(self.st.get("table_cols", 2))))
+        return make_table([x, y, x, y], rows, cols, id=uuid.uuid4().hex[:8], color=self.color,
+                          width=min(self._w(), 6), size=self._fs(), family=self.family.get(), bold=self.bold.get(),
+                          italic=self.italic.get(), align=self.align.get(), header=self.tbl_header_var.get(),
+                          bg="#FFFFFF" if self.tbl_bg_var.get() else None)
+
+    def _table_op(self, o, fn, *args):
+        self.commit_edit()
+        if not self.sel or o not in self.sel["objs"]:
+            return
+        self.push_undo()
+        if fn(o, *args):
+            table_fit(o)
+            self.select_obj(o)
+            self.changed()
+        else:
+            self.pop_undo()
+
+    def start_cell_edit(self, o, r, c):
+        self.commit_edit()
+        if not self.sel or o not in self.sel["objs"]:
+            return
+        r = max(0, min(len(o["rh"]) - 1, r))
+        c = max(0, min(len(o["cw"]) - 1, c))
+        self.push_undo()
+        self.sel_obj = o
+        self._load_props(o)
+        self._update_panel()
+        t = tk.Text(self.canvas, wrap="word", undo=True, relief="flat", bd=0, padx=2, pady=1,
+                    highlightthickness=2, highlightcolor=ACCENT, highlightbackground=ACCENT)
+        t.insert("1.0", o["cells"][r][c])
+        win = self.canvas.create_window(0, 0, window=t, anchor="nw", tags="celleditor")
+        self.cell_edit = {"obj": o, "r": r, "c": c, "w": t, "win": win, "before": o["cells"][r][c], "font": None}
+        self._style_cell_editor()
+        t.bind("<Tab>", lambda e: (self._cell_step(1), "break")[1])
+        for seq in ("<Shift-Tab>", "<ISO_Left_Tab>"):
+            try:
+                t.bind(seq, lambda e: (self._cell_step(-1), "break")[1])
+            except tk.TclError:
+                pass
+        t.bind("<Return>", lambda e: (self._cell_down(), "break")[1])
+        t.bind("<Shift-Return>", lambda e: None)          # Shift+Enter: a new line inside the cell
+        t.bind("<Control-Return>", lambda e: (self.commit_edit(), "break")[1])
+        t.bind("<Escape>", lambda e: (self.commit_edit(), "break")[1])
+        t.focus_set()
+        t.mark_set("insert", "end-1c")
+        self.set_status(tr("Typing in the table  ·  Tab = next cell  ·  Enter = cell below  ·  Esc = done"))
+        self.render()
+
+    def _style_cell_editor(self):
+        ce = self.cell_edit
+        if not ce:
+            return
+        o = ce["obj"]
+        px = max(6, int(round(o["size"] * self.s)))
+        bold = o.get("bold") or table_header_row(o, ce["r"])
+        ce["font"] = tkfont.Font(family=o.get("family", "Segoe UI"), size=-px,
+                                 weight="bold" if bold else "normal", slant="italic" if o.get("italic") else "roman")
+        bg = o.get("bg") or ("#FFFFFF" if contrast(o["color"]) == "#FFFFFF" else "#333333")
+        ce["w"].configure(font=ce["font"], fg=o["color"], bg=bg, insertbackground=o["color"])
+        ce["w"].tag_configure("al", justify={"left": "left", "center": "center", "right": "right"}[o.get("align", "left")])
+        ce["w"].tag_add("al", "1.0", "end")
+        ce["px"] = px
+
+    def _place_cell_editor(self):
+        ce = self.cell_edit
+        o = ce["obj"]
+        if ce["r"] >= len(o["rh"]) or ce["c"] >= len(o["cw"]):
+            return
+        x0, y0, x1, y1 = table_cell_box(o, ce["r"], ce["c"])
+        a, b = self.to_canvas(x0, y0)
+        cc, d = self.to_canvas(x1, y1)
+        lh = ce["font"].metrics("linespace") + 8 if ce["font"] else 20
+        self.canvas.coords(ce["win"], a + 1, b + 1)
+        self.canvas.itemconfigure(ce["win"], width=max(40, int(cc - a - 1)), height=max(lh, int(d - b - 1)))
+        if ce.get("px") != max(6, int(round(o["size"] * self.s))):
+            self._style_cell_editor()
+
+    def _drop_cell_edit(self):
+        ce, self.cell_edit = self.cell_edit, None
+        SKIP_CELL[0] = None
+        if ce:
+            try:
+                self.canvas.delete("celleditor")
+                ce["w"].destroy()
+            except Exception:
+                pass
+        return ce
+
+    def commit_cell(self):
+        """Writes the typed text into the cell; one undo step per cell."""
+        ce = self.cell_edit
+        if not ce:
+            return
+        txt = ce["w"].get("1.0", "end-1c")
+        self._drop_cell_edit()
+        o = ce["obj"]
+        if self.sel is None or o not in self.sel["objs"] or ce["r"] >= len(o["cells"]) or ce["c"] >= len(o["cw"]):
+            return
+        self.canvas.focus_set()
+        if txt == ce["before"]:
+            self.pop_undo()
+            self.request_render()
+            return
+        o["cells"][ce["r"]][ce["c"]] = txt
+        table_fit(o)
+        self.changed()
+
+    def _cell_step(self, d):
+        ce = self.cell_edit
+        if not ce:
+            return
+        o, R, C = ce["obj"], len(ce["obj"]["rh"]), len(ce["obj"]["cw"])
+        i = ce["r"] * C + ce["c"] + d
+        self.commit_cell()
+        if i >= R * C:                  # Tab in the last cell adds a row, like Word
+            self._table_op(o, table_insert, "row", R)
+            if len(o["rh"]) == R:
+                return
+        i = max(0, i)
+        self.start_cell_edit(o, i // C, i % C)
+
+    def _cell_down(self):
+        ce = self.cell_edit
+        if not ce:
+            return
+        o, r, c = ce["obj"], ce["r"], ce["c"]
+        self.commit_cell()
+        if r + 1 < len(o["rh"]):
+            self.start_cell_edit(o, r + 1, c)
+
+    # ===================================================================== symbols
+    def show_symbols(self):
+        if self.sym_win is not None and self.sym_win.winfo_exists():
+            self.sym_win.deiconify()
+            self.sym_win.lift()
+            return
+        self.sym_win = SymbolPanel(self)
+
+    def insert_symbol(self, sym):
+        """Into the text or table cell being typed; else into the selected text box; else as a stamp."""
+        w = self.cell_edit["w"] if self.cell_edit else self.edit_widget
+        o = self.sel_obj
+        if w is None and o and o["type"] == "text" and self.sel and o in self.sel["objs"] and self.view_n() == 1:
+            self.start_edit(o)
+            w = self.edit_widget
+        if w is not None:
+            w.insert("insert", sym)
+            if w is self.edit_widget:
+                self._size_editor()
+            try:
+                w.focus_force()
+            except tk.TclError:
+                pass
+            return
+        self.set_stamp(sym)
+        self.set_status(tr("Click on the screenshot to place {sym}", sym=sym))
 
     # ===================================================================== measurement building
     def cancel_building(self):
@@ -4187,6 +4770,19 @@ class App:
             self.render()
             if o["type"] == "text":
                 m.add_command(label=tr("Edit text"), command=lambda: self.start_edit(o))
+            rc = table_cell_at(o, x, y) if o["type"] == "table" else None
+            if rc:
+                r, c = rc
+                m.add_command(label=tr("Edit cell"), command=lambda: self.start_cell_edit(o, r, c))
+                m.add_separator()
+                m.add_command(label=tr("Insert row above"), command=lambda: self._table_op(o, table_insert, "row", r))
+                m.add_command(label=tr("Insert row below"), command=lambda: self._table_op(o, table_insert, "row", r + 1))
+                m.add_command(label=tr("Insert column left"), command=lambda: self._table_op(o, table_insert, "col", c))
+                m.add_command(label=tr("Insert column right"),
+                              command=lambda: self._table_op(o, table_insert, "col", c + 1))
+                m.add_command(label=tr("Delete row"), command=lambda: self._table_op(o, table_delete, "row", r))
+                m.add_command(label=tr("Delete column"), command=lambda: self._table_op(o, table_delete, "col", c))
+                m.add_separator()
             if o["type"] in solid3d.SOLID_TYPES:
                 m.add_command(label=tr("Make flat") if o.get("solid") else tr("Make 3D"), command=self.toggle_solid)
             m.add_command(label=tr("Duplicate"), command=self.dup_obj, accelerator="Ctrl+D")
@@ -4214,6 +4810,15 @@ class App:
             self._board_press(e)
             return
         if not self.sel:
+            return
+        if self.cell_edit:              # typing in a table: a click on another cell moves there, elsewhere finishes
+            o = self.cell_edit["obj"]
+            x, y = self.to_img(e.x, e.y)
+            rc = table_cell_at(o, x, y) if not self._on_grip(e) else None
+            if rc:
+                self.start_cell_edit(o, *rc)
+            else:
+                self.commit_edit()
             return
         if self._on_grip(e) and (self.editing or self.sel_obj):
             o = self.editing or self.sel_obj
@@ -4299,6 +4904,13 @@ class App:
         elif t == "crop":
             self.drag = {"mode": "crop", "box": [x, y, x, y], "start": (e.x, e.y)}
             return
+        elif t == "table":
+            ex = self.hit(x, y, types=("table",))
+            rc = table_cell_at(ex, x, y) if ex else None
+            if rc:
+                self.start_cell_edit(ex, *rc)
+                return
+            o = self._new_table(x, y)
         else:
             return
         self.push_undo()
@@ -4421,6 +5033,16 @@ class App:
             o = d["obj"]
             sx, sy = d["start"]
             tiny = abs(e.x - sx) + abs(e.y - sy) < 4
+            if o["type"] == "table":
+                if tiny or abs(o["box"][2] - o["box"][0]) * self.s < 12 or abs(o["box"][3] - o["box"][1]) * self.s < 8:
+                    x0, y0 = o["box"][:2]     # a click: a table of the default size
+                    o["box"] = [x0, y0, x0 + len(o["cw"]) * o["size"] * 5, y0 + len(o["rh"]) * o["size"] * 1.9]
+                o["box"] = norm_box(o["box"])
+                table_fit(o)
+                self.select_obj(o)
+                self.changed()
+                self.start_cell_edit(o, 0, 0)
+                return
             if tiny and o["type"] not in ("pen", "highlight"):
                 self.sel["objs"].remove(o)
                 self.pop_undo()
@@ -4470,8 +5092,14 @@ class App:
             return
         x, y = self.to_img(e.x, e.y)
         if self.tool.get() == "select":
-            o = self.hit(x, y, types=("text",))
-            if o:
+            o = self.hit(x, y, types=("text", "table"))
+            if o and o["type"] == "table":
+                rc = table_cell_at(o, x, y)
+                if rc:
+                    self.drag = None
+                    self.start_cell_edit(o, *rc)
+                    return
+            elif o:
                 self.drag = None
                 self.start_edit(o)
                 return
@@ -4604,7 +5232,7 @@ class App:
             self.later("autocopy", ms, lambda: self.copy_view(auto=True))
 
     def copy_view(self, auto=False):
-        if self.editing:
+        if self.editing or self.cell_edit:
             return
         img = self.view_image()
         if img is None:
@@ -5093,6 +5721,7 @@ class App:
             self.sel = self.items[0] if self.items else None
             self.sel_obj = None
             self.editing = None
+            self._drop_cell_edit()
         self._save_board()
         if not self.items:
             try:
