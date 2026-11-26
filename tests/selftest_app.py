@@ -40,6 +40,13 @@ assert app.theme.id == "night" and app.theme.frame, "night theme expected"
 framed = app.framed(Image.new("RGB", (400, 300), "white"))
 assert framed.width > 400 and framed.height > 300, framed.size
 print("theme OK")
+assert app.theme_random.get() is False
+for _ in range(20):
+    tid = mc.pick_random_theme(app.themes, "night")
+    assert tid in app.themes and tid != "night", tid
+assert mc.pick_random_theme({"default": 1}, "default") == "default"
+assert mc.pick_random_theme({}, None) is None
+print("random theme OK")
 
 img = Image.new("RGB", (640, 200), "white")
 ImageDraw.Draw(img).rectangle((20, 20, 300, 80), fill="black")
