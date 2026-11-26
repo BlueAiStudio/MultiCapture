@@ -400,9 +400,54 @@ TR = {
         ("⚠ {n} d'entre elles n'ont pas été enregistrées dans un fichier et seront perdues.", "⚠ 其中 {n} 张还没保存成文件，删除后将无法找回。"),
     "Files you saved yourself are not affected.": ("Les fichiers que vous avez enregistrés ne sont pas touchés.", "你自己保存的文件不受影响。"),
     "{n} screenshot(s) deleted": ("{n} capture(s) supprimée(s)", "已删除 {n} 张截图"),
+    # ---------------------------------------------------------------- same spot + compare
+    "Same spot": ("Même zone", "同位置"),
+    "Capture the same area of the screen again as the selected screenshot  (Ctrl+Shift+R)\nGlobal hotkey from anywhere: Ctrl+Alt+R":
+        ("Capturer à nouveau exactement la même zone de l'écran que la capture sélectionnée  (Ctrl+Maj+R)\n"
+         "Raccourci global partout : Ctrl+Alt+R",
+         "按选中截图的位置，重新截取屏幕上完全相同的区域  (Ctrl+Shift+R)\n任意位置全局快捷键：Ctrl+Alt+R"),
+    "Compare": ("Comparer", "对比"),
+    "Compare two screenshots with a slider and highlight the differences  (Ctrl+Shift+C)":
+        ("Comparer deux captures avec un curseur et surligner les différences  (Ctrl+Maj+C)",
+         "用滑块对比两张截图，并高亮显示不同之处  (Ctrl+Shift+C)"),
+    "⚠ This screenshot has no saved screen position (taken with an older version, a scrolling capture or a blank canvas) - take a new capture first":
+        ("⚠ Cette capture n'a pas de position d'écran enregistrée (ancienne version, capture défilante ou toile vierge) - faites d'abord une nouvelle capture",
+         "⚠ 这张截图没有保存屏幕位置（旧版本截的、长截图或空白画布），请先新截一张"),
+    "No screen position": ("Pas de position d'écran", "没有屏幕位置"),
+    "⚠ That area is no longer on the screen (monitor layout changed)":
+        ("⚠ Cette zone n'est plus à l'écran (disposition des moniteurs modifiée)", "⚠ 该区域已不在屏幕上（显示器布局已改变）"),
+    "Screenshot #{n} re-captured the area of #{m}": ("Capture #{n} : même zone que #{m}", "截图 #{n}：已按 #{m} 的位置重新截取"),
+    "Take at least two screenshots to compare them": ("Faites au moins deux captures pour les comparer", "至少需要两张截图才能对比"),
+    "{n} difference(s) marked on #{m}": ("{n} différence(s) marquée(s) sur #{m}", "已在 #{m} 上标出 {n} 处不同"),
+    "Capture the same spot again": ("Capturer à nouveau la même zone", "按同位置重新截图"),
+    "Compare with #{n}": ("Comparer avec #{n}", "与 #{n} 对比"),
+    "Compare…": ("Comparer…", "对比…"),
+    "synced zoom - Ctrl+0 to reset": ("zoom synchronisé - Ctrl+0 pour revenir", "同步缩放 - Ctrl+0 恢复"),
+    "Compare screenshots": ("Comparer des captures", "对比截图"),
+    "Before": ("Avant", "之前"),
+    "After": ("Après", "之后"),
+    "Slider": ("Curseur", "滑块"),
+    "Side by side": ("Côte à côte", "并排"),
+    "Highlight differences": ("Surligner les différences", "高亮不同之处"),
+    "Tolerance": ("Tolérance", "容差"),
+    "Copy comparison": ("Copier la comparaison", "复制对比图"),
+    "Mark differences on 'After'": ("Marquer les différences sur « Après »", "在「之后」图上标出不同"),
+    "Open after each recapture": ("Ouvrir après chaque nouvelle capture de la zone", "每次同位置重截后自动打开"),
+    "#{a} → #{b}": ("#{a} → #{b}", "#{a} → #{b}"),
+    "No differences found": ("Aucune différence trouvée", "没有发现不同"),
+    "{n} changed area(s), {p} pixels": ("{n} zone(s) modifiée(s), {p} pixels", "{n} 处不同，{p} 个像素"),
+    "Sizes differ ({a} vs {b}) - only the overlapping top-left part is compared":
+        ("Tailles différentes ({a} / {b}) - seule la partie commune en haut à gauche est comparée",
+         "尺寸不同（{a} 与 {b}），只对比左上角重叠的部分"),
+    "Wheel: zoom · middle/right-drag: pan · double-click: fit":
+        ("Molette : zoom · glisser clic milieu/droit : déplacer · double-clic : ajuster",
+         "滚轮：缩放 · 中键/右键拖动：平移 · 双击：适应窗口"),
+    "comparison": ("comparaison", "对比图"),
     "SHORTCUTS": (
         "Ctrl+Alt+S   capture depuis n'importe où (global)\n"
         "Ctrl+N         nouvelle capture\n"
+        "Ctrl+Maj+R    recapturer la même zone  ·  Ctrl+Alt+R  depuis n'importe où\n"
+        "Ctrl+Maj+C    comparer deux captures\n"
         "Ctrl+C         copier la vue actuelle\n"
         "Ctrl+S         enregistrer la vue   ·   Ctrl+Maj+S  tout enregistrer\n"
         "Ctrl+Z / Y    annuler / rétablir\n"
@@ -421,6 +466,8 @@ TR = {
         "X gomme · F remplissage · I pipette   ·   Ctrl+Maj+N page blanche",
         "Ctrl+Alt+S   在任意位置截图（全局）\n"
         "Ctrl+N         新建截图\n"
+        "Ctrl+Shift+R  同位置重新截图  ·  Ctrl+Alt+R  任意位置\n"
+        "Ctrl+Shift+C  对比两张截图\n"
         "Ctrl+C         复制当前视图\n"
         "Ctrl+S         保存当前视图   ·   Ctrl+Shift+S  全部保存\n"
         "Ctrl+Z / Y    撤销 / 重做\n"
@@ -637,6 +684,8 @@ TR = {
 SHORTCUTS_EN = (
     "Ctrl+Alt+S   capture from anywhere (global)\n"
     "Ctrl+N         new capture\n"
+    "Ctrl+Shift+R  capture the same spot again  ·  Ctrl+Alt+R  from anywhere\n"
+    "Ctrl+Shift+C  compare two screenshots\n"
     "Ctrl+C         copy current view\n"
     "Ctrl+S         save current view    ·   Ctrl+Shift+S  save all\n"
     "Ctrl+Z / Y    undo / redo\n"
@@ -750,6 +799,13 @@ Options → Extra features switches each of these on or off. While a feature is 
 - IMAGE section of the right panel (Select tool, nothing selected), also in the right-click menu: Rotate left / right, Flip horizontal / vertical, Crop (drag the part to keep) and Resize… (in %). Annotations follow the picture. Ctrl+Z undoes.
 - New blank canvas… (Ctrl+Shift+N): an empty page in the history, with the size and background colour you choose, to draw on like in Paint with the pen, shapes and text.
 > The tool bar uses two columns when the window is too low for one.
+
+# 14. Same spot and compare
+- ⟳ Same spot (Ctrl+Shift+R, or Ctrl+Alt+R anywhere in Windows) captures exactly the same screen area as the selected screenshot again – ideal for "before / after" or to follow a change. Right-click a history card → "Capture the same spot again" works for any screenshot.
+- After a same-spot capture the Compare window opens: drag the divider to reveal the before or the after image, or choose "Side by side". Both images always share the same zoom and position (wheel = zoom, middle/right-drag = pan, double-click = fit).
+- "Highlight differences" tints every changed pixel red and draws a red box around each changed area. "Tolerance" ignores small colour changes. "Mark differences on 'After'" adds the red boxes to the newer screenshot as normal (editable) rectangles; "Copy comparison" copies both images side by side.
+- ◧ Compare (Ctrl+Shift+C) compares the selected screenshot with the one it re-captured (or the previous one); pick any two in the Before / After lists. Screenshots of different sizes are aligned at the top-left corner.
+- Synced zoom on a board: Ctrl+wheel over a cell zooms ALL cells to the same place, the wheel / middle-drag pans them together, Ctrl+0 or Fit goes back.
 """,
     "fr": """# MultiCapture – Guide d'utilisation
 MultiCapture conserve toutes vos captures d'écran. Disposez-en plusieurs sur une même planche (2×2, 3×3 …), annotez-les, mesurez, ajoutez des notes et collez le résultat directement dans un e-mail, Word ou Excel.
@@ -839,6 +895,13 @@ Options → Fonctions supplémentaires active ou désactive chacune d'elles. Une
 - Section IMAGE du panneau de droite (outil Sélection, rien de sélectionné), aussi dans le menu du clic droit : Rotation gauche / droite, Miroir horizontal / vertical, Rogner (glissez la partie à garder) et Redimensionner… (en %). Les annotations suivent l'image. Ctrl+Z annule.
 - Nouvelle page blanche… (Ctrl+Maj+N) : une page vide dans l'historique, de la taille et de la couleur de fond choisies, pour dessiner comme dans Paint.
 > La barre d'outils passe sur deux colonnes quand la fenêtre est trop basse.
+
+# 14. Même zone et comparaison
+- ⟳ Même zone (Ctrl+Maj+R, ou Ctrl+Alt+R partout dans Windows) capture à nouveau exactement la même zone de l'écran que la capture sélectionnée – idéal pour un « avant / après » ou pour suivre une évolution. Clic droit sur une carte de l'historique → « Capturer à nouveau la même zone » fonctionne pour n'importe quelle capture.
+- Ensuite la fenêtre Comparer s'ouvre : faites glisser le séparateur pour voir l'image avant ou après, ou choisissez « Côte à côte ». Les deux images ont toujours le même zoom et la même position (molette = zoom, glisser clic milieu/droit = déplacer, double-clic = ajuster).
+- « Surligner les différences » colore en rouge chaque pixel modifié et encadre chaque zone modifiée. « Tolérance » ignore les petits changements de couleur. « Marquer les différences sur « Après » » ajoute les cadres rouges à la capture la plus récente comme des rectangles normaux (modifiables) ; « Copier la comparaison » copie les deux images côte à côte.
+- ◧ Comparer (Ctrl+Maj+C) compare la capture sélectionnée avec celle qu'elle reprend (ou la précédente) ; choisissez n'importe quelles captures dans les listes Avant / Après. Des captures de tailles différentes sont alignées en haut à gauche.
+- Zoom synchronisé sur une planche : Ctrl+molette sur une case zoome TOUTES les cases au même endroit, la molette / le clic milieu les déplacent ensemble, Ctrl+0 ou Ajuster revient à la vue entière.
 """,
     "zh": """# MultiCapture 使用说明
 MultiCapture 会保留你截的每一张图。可以把多张截图放在同一个拼图里（2×2、3×3 …），进行标注、测量、写备注，然后直接粘贴到邮件、Word 或 Excel 中。
@@ -928,6 +991,13 @@ MultiCapture 会保留你截的每一张图。可以把多张截图放在同一�
 - 右侧面板的「图像」区（选择工具且没有选中标注时显示），右键菜单里也有：向左 / 向右旋转、水平 / 垂直翻转、裁剪（拖出要保留的部分）、调整大小…（按百分比）。标注会跟着图片一起变。Ctrl+Z 可撤销。
 - 新建空白画布…（Ctrl+Shift+N）：在历史记录里新建一张空白图，可选尺寸和背景色，像在“画图”里一样画画。
 > 窗口太矮时，左侧工具栏会自动变成两列。
+
+# 14. 同位置重截和对比
+- 「⟳ 同位置」（Ctrl+Shift+R，或在 Windows 任意位置按 Ctrl+Alt+R）会按选中截图的位置，重新截取屏幕上完全相同的区域，适合做「改动前 / 改动后」对比或观察变化。在历史记录卡片上右键 →「按同位置重新截图」，可以对任意一张截图使用。
+- 同位置截图后会自动打开「对比」窗口：拖动中间的分割线查看之前或之后的图片，也可以选「并排」。两张图始终保持相同的缩放和位置（滚轮缩放，中键 / 右键拖动平移，双击适应窗口）。
+- 「高亮不同之处」会把每个变化的像素染成红色，并用红框圈出每一处不同。「容差」可忽略细微的颜色变化。「在「之后」图上标出不同」会把红框作为普通（可编辑的）矩形标注加到较新的截图上；「复制对比图」会把两张图并排复制到剪贴板。
+- 「◧ 对比」（Ctrl+Shift+C）把选中的截图和它重截的原图（或上一张）对比；也可以在「之前 / 之后」列表里任选两张。尺寸不同的截图按左上角对齐。
+- 拼图同步缩放：在任意格子上 Ctrl+滚轮，所有格子会一起放大到同一位置；滚轮 / 中键拖动一起平移；Ctrl+0 或「适应」恢复。
 """,
 }
 

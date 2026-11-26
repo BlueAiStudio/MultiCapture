@@ -22,6 +22,7 @@ The built-in Snipping Tool keeps one capture at a time. MultiCapture keeps **all
 - **Tables**: choose rows × columns, drag onto the image, type in the cells (Tab / Enter to move), resize columns and rows, restyle at any time.
 - **Symbol panel**: ✓ ✗ ★ → ⚠ ± ° Ø ⌀ ≤ ≥ ① α … in one click, into text, table cells or as a stamp.
 - **PDF-style measurement**: distance, perimeter, area and angle, with a calibrated scale.
+- **Same spot + compare**: ⟳ Same spot (`Ctrl+Shift+R`, or `Ctrl+Alt+R` from anywhere) captures exactly the same screen area again; a Compare window shows before / after with a draggable slider or side by side, and highlights the differences with red boxes. Board cells can be zoomed and panned together (synced zoom).
 - **Paint-style tools**: eraser, fill bucket, colour picker, crop, rotate / flip, resize, and a blank canvas to draw on (`Ctrl+Shift+N`). Fills and erasing stay undoable and editable.
 - **Notes panel** for each screenshot, optionally included in copies and exports.
 - **Export** to PNG / JPG / BMP / PDF, either one image or all of them (separate PNG files or one PDF).
@@ -97,6 +98,7 @@ Session data is stored in `%APPDATA%\MultiCapture\`.
 - 当前视图会自动复制到剪贴板，可以直接粘贴到 Outlook、Word、Excel 或 Teams；
 - 提供可编辑的标注：画笔、箭头、框、编号、印章、马赛克、标注框，以及类似 Word 的文字框（可设字体、字号、颜色，用 ✥ 拖动）；
 - 提供类似 PDF 阅读器的测量功能：距离、周长、面积、角度，可以标定比例；
+- **同位置重截 + 对比**：「⟳ 同位置」（`Ctrl+Shift+R`，任意位置 `Ctrl+Alt+R`）按上一张截图的位置重新截取完全相同的区域；对比窗口可拖动滑块或并排查看前后两张图，并用红框高亮不同之处。宫格里的图片可以一起缩放、平移（同步缩放）；
 - 类似 Windows“画图”的工具：橡皮擦、油漆桶、取色器、裁剪、旋转 / 翻转、调整大小，还可以新建空白画布来画画（`Ctrl+Shift+N`）；
 - 右侧是笔记栏，可以选择是否把笔记一起复制或导出；
 - 可导出为 PNG、JPG、BMP 或 PDF；关闭软件时会提示是否保存；
@@ -126,6 +128,7 @@ L'Outil Capture d'écran ne garde qu'une capture à la fois. MultiCapture les ga
 - La vue courante est copiée automatiquement dans le presse-papiers (Outlook, Word, Excel…) ;
 - Annotations modifiables et zones de texte de type Word ;
 - Mesures façon PDF : distance, périmètre, surface, angle ;
+- Même zone + comparaison : « ⟳ Même zone » (`Ctrl+Maj+R`, ou `Ctrl+Alt+R` partout) recapture exactement la même zone de l'écran ; la fenêtre Comparer montre avant / après avec un curseur ou côte à côte et encadre les différences en rouge. Zoom synchronisé des cases d'une planche ;
 - Outils façon Paint : gomme, pot de peinture, pipette, rognage, rotation / miroir, redimensionnement et page blanche pour dessiner (`Ctrl+Maj+N`) ;
 - Panneau de notes, export PNG / JPG / BMP / PDF, demande d'enregistrement à la fermeture ;
 - Rapport de la planche en PDF ou Word (titre, date, notes, mesures et tableau récapitulatif), tableau des mesures copiable dans Excel ;
