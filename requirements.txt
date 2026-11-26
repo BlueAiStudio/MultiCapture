@@ -1,3 +1,7 @@
 Pillow>=10.0
+# optional, for saving screen recordings as MP4 (bundled into the .exe):
+imageio-ffmpeg>=0.5
+# optional, for recording the microphone / system sound into MP4 (bundled into the .exe):
+pyaudiowpatch>=0.2.12; sys_platform == "win32"
 # only needed to build the .exe:
 pyinstaller>=6.0
