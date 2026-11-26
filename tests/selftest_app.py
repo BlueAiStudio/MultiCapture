@@ -142,6 +142,21 @@ path = os.path.join(os.environ["APPDATA"], "test.gif")
 extras.save_gif(r, path)
 with Image.open(path) as g:
     print("recording OK", g.size, g.n_frames, "frames")
+assert extras.find_ffmpeg(), "ffmpeg (imageio-ffmpeg) not found"
+print("audio package:", extras.audio_available())
+for snd in (False, True):          # with sound on, a machine without audio devices must still record
+    out = {}
+    rec = extras.VideoRecorder(root, (100, 100, 421, 341), lambda t: out.update(take=t), fps=10,
+                               mic=snd, system=snd)
+    pump(2.0)
+    rec.stop()
+    take = out["take"]
+    assert take is not None and not getattr(take, "error", None), getattr(take, "error", None)
+    path = os.path.join(os.environ["APPDATA"], f"test_{snd}.mp4")
+    extras.save_video(take, path)
+    assert os.path.getsize(path) > 500
+    print("MP4 OK", "sound" if snd else "silent", round(take.duration, 1), "s", len(take.audio), "track(s)",
+          os.path.getsize(path), "bytes", ascii(take.notes))
 
 app.feat["feat_scroll"].set(False)
 app._features_changed()
