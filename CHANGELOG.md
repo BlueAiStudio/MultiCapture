@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Random theme**: in 🎨 Themes, "🎲 Random theme now" switches to a random installed theme, and "Use a random theme each time the app starts" picks a different one at every start (off by default).
 - **Microsoft Store package**: `build_msix.ps1` builds an MSIX package (signed by the Store when published). In the Store version, settings and history live in the package's own data folder, so "Open folder" opens the right place. CI test-installs the package, checks that it starts, and makes the Store screenshots.
 - **Code signing** of `MultiCapture.exe` in CI with Azure Artifact Signing, switched on by adding the repository secrets (see `docs/CODE_SIGNING.md`).
 - **History limit** (Options › History limit): keep only the last 20 / 50 / 100 / 200 / 500 screenshots, or unlimited. The oldest are removed automatically; lowering the limit asks before deleting.

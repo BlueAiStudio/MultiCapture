@@ -25,6 +25,7 @@ import json
 import math
 import os
 import queue
+import random
 import sys
 import threading
 import time
@@ -157,6 +158,13 @@ def load_themes():
     return themes.discover([(THEMES_BUILTIN, "builtin"), (THEMES_USER, "user")])
 
 
+def pick_random_theme(all_themes, current=None):
+    """A random installed theme id, different from `current` when there is another one (None if none)."""
+    ids = sorted(all_themes)
+    others = [t for t in ids if t != current]
+    return random.choice(others or ids) if ids else None
+
+
 UI = ("Segoe UI", 9)
 UI_B = ("Segoe UI Semibold", 9)
 UI_H = ("Segoe UI Semibold", 8)
@@ -206,7 +214,7 @@ DEFAULT_SETTINGS = {
     "stamp": "✔", "decimals": 2, "default_scale": None, "next_num": 1,
     "geometry": "1440x880", "mode": "Region", "delay": "No delay", "lang": None, "guide_shown": False,
     "ask_on_close": True, "last_dir": DEFAULT_SAVE_DIR, "close_fmt": "PNG", "close_what": "unsaved",
-    "open_after_save": False, "theme": "default", "theme_frame": True,
+    "open_after_save": False, "theme": "default", "theme_frame": True, "theme_random": False,
     "feat_pin": False, "feat_ocr": False, "feat_scroll": False, "feat_record": False,
     "ocr_lang": "", "rec_fps": 10,
 }
@@ -1420,6 +1428,12 @@ class ThemeDialog(tk.Toplevel):
         self.del_btn.pack(side="left", padx=(6, 0))
 
         tk.Frame(self, bg=BORDER, height=1).pack(fill="x", pady=(12, 0))
+        rnd = tk.Frame(self, **pad)
+        rnd.pack(fill="x", padx=16, pady=(10, 0))
+        FlatButton(rnd, "🎲  " + tr("Random theme now"), self._random_now, bg=BTN, hover=BTN_H, padx=10, pady=5,
+                   tip=tr("Picks one of your installed themes at random")).pack(side="left")
+        ttk.Checkbutton(rnd, text=tr("Use a random theme each time the app starts"), variable=app.theme_random,
+                        command=app._opts_changed).pack(side="left", padx=(12, 0))
         bot = tk.Frame(self, **pad)
         bot.pack(fill="x", padx=16, pady=10)
         self.get_btn = FlatButton(bot, "☁  " + tr("Get online themes"), self._fetch, bg=BTN, hover=BTN_H, padx=10, pady=5,
@@ -1618,6 +1632,19 @@ class ThemeDialog(tk.Toplevel):
         except tk.TclError:   # the app restarted
             pass
 
+    def _random_now(self):
+        tid = pick_random_theme(self.app.themes, self.app.theme.id)
+        if not tid or tid == self.app.theme.id:
+            self._set_status(tr("Install another theme first."))
+            return
+        self._fill(select=tid)
+        self.app.set_theme(tid)
+        try:
+            if self.winfo_exists():
+                self._fill(select=tid)
+        except tk.TclError:   # the app restarted
+            pass
+
     def _import(self):
         p = filedialog.askopenfilename(parent=self, title=tr("Import a theme"),
                                        filetypes=[(tr("Theme package"), "*.zip"), ("*", "*.*")])
@@ -1731,8 +1758,13 @@ class App:
         self.restart = False
         _DEC[0] = int(self.st.get("decimals", 2))
         self.themes, self.theme_errors = load_themes()
+        if self.st.get("theme_random"):
+            tid = pick_random_theme(self.themes, self.st.get("theme"))
+            if tid:
+                self.st["theme"] = tid
         self.theme = self.themes.get(self.st.get("theme")) or self.themes[themes.DEFAULT_ID]
         apply_theme(self.theme)
+        self.theme_random = tk.BooleanVar(value=bool(self.st.get("theme_random", False)))
         self.theme_frame = tk.BooleanVar(value=self.st.get("theme_frame", True))
         self._deco_key = None
         root.title(f"{APP_NAME}")
@@ -4206,7 +4238,8 @@ class App:
     def _opts_changed(self):
         self.st.update(autocopy=self.autocopy.get(), include_notes=self.include_notes.get(),
                        autosave=self.autosave.get(), keep_history=self.keep_history.get(),
-                       ask_on_close=self.ask_close.get(), theme_frame=self.theme_frame.get())
+                       ask_on_close=self.ask_close.get(), theme_frame=self.theme_frame.get(),
+                       theme_random=self.theme_random.get())
         for it in self.items:
             it["_gkey"] = None
         self.render()
