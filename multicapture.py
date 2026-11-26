@@ -37,6 +37,7 @@ from tkinter import colorchooser, filedialog, messagebox, simpledialog, ttk
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageGrab, ImageTk
 
+import compare
 import extras
 import paint
 import report
@@ -394,13 +395,16 @@ def set_clipboard_image(img):
 
 def hotkey_thread(q):
     MOD_ALT, MOD_CONTROL, MOD_NOREPEAT = 0x1, 0x2, 0x4000
-    if not user32.RegisterHotKey(None, 1, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x53):
+    ok = user32.RegisterHotKey(None, 1, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x53)
+    if not ok:
         q.put(("hotkey_failed",))
+    ok = user32.RegisterHotKey(None, 2, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x52) or ok   # Ctrl+Alt+R
+    if not ok:
         return
     msg = wt.MSG()
     while user32.GetMessageW(ctypes.byref(msg), None, 0, 0) != 0:
         if msg.message == 0x0312:
-            q.put(("capture",))
+            q.put(("recapture",) if msg.wParam == 2 else ("capture",))
 
 
 # --------------------------------------------------------------------------- geometry
@@ -1909,6 +1913,9 @@ class App:
         self.edit_new = False
         self.busy = False
         self.last_region = None
+        self.cmp = None          # compare window (compare.CompareWindow), one at a time
+        self.bz, self.bcx, self.bcy = 1.0, 0.5, 0.5   # synced board zoom: factor + centre (0-1)
+        self._bgeo = {}          # board: canvas placement (x, y, w, h) of each cell's image, by item id
         self.s, self.vx, self.vy, self.fit = 1.0, 0.0, 0.0, True
         self._base_key = None
         self._base = None
@@ -2022,6 +2029,12 @@ class App:
         FlatButton(head, command=self.new_capture, bg=ACCENT, fg="white", hover=ACCENT_D,
                    font=UI_BIG, padx=14, pady=6, **self._hbtn("capture", "＋", tr("New capture"), 20),
                    tip=tr("New capture  (Ctrl+N)\nGlobal hotkey from anywhere: Ctrl+Alt+S")).pack(side="left", pady=8)
+        FlatButton(head, command=self.recapture, padx=6, **self._hbtn("recapture", "⟳", tr("Same spot")),
+                   tip=tr("Capture the same area of the screen again as the selected screenshot  (Ctrl+Shift+R)\n"
+                          "Global hotkey from anywhere: Ctrl+Alt+R")).pack(side="left", padx=(4, 0))
+        FlatButton(head, command=self.compare_selected, padx=6, **self._hbtn("compare", "◧", tr("Compare")),
+                   tip=tr("Compare two screenshots with a slider and highlight the differences  (Ctrl+Shift+C)")
+                   ).pack(side="left")
         cb = ttk.Combobox(head, textvariable=self.mode_var, state="readonly", width=12,
                           values=[tr(k) for k in self._mode_keys()])
         self.mode_cb = cb
@@ -2556,9 +2569,47 @@ class App:
         self.commit_edit()
         self.cancel_building()
         self.busy = True
-        d = {"No delay": 0, "3 s": 3, "5 s": 5, "10 s": 10}.get(self._key(self.delay_var, DELAY_KEYS), 0)
-        self.root.withdraw()
+        d = self._delay_s()
+        self._hide_windows()
         self.root.after(280 + d * 1000, self._grab)
+
+    def _delay_s(self):
+        return {"No delay": 0, "3 s": 3, "5 s": 5, "10 s": 10}.get(self._key(self.delay_var, DELAY_KEYS), 0)
+
+    def _hide_windows(self):
+        self.root.withdraw()
+        if self.cmp:
+            self.cmp.hide()
+
+    def recapture(self, it=None):
+        """Captures exactly the same screen rectangle as `it` (default: the selected screenshot)."""
+        if self.busy:
+            return
+        it = it or self.sel
+        box = it.get("box") if it else self.last_region
+        if not box:
+            self.set_status(tr("⚠ This screenshot has no saved screen position (taken with an older version, "
+                               "a scrolling capture or a blank canvas) - take a new capture first"))
+            self.flash_msg(tr("No screen position"))
+            return
+        self.commit_edit()
+        self.cancel_building()
+        self.busy = True
+        self._hide_windows()
+        self.root.after(280 + self._delay_s() * 1000, lambda: self._regrab(it, tuple(box)))
+
+    def _regrab(self, src, box):
+        try:
+            shot = ImageGrab.grab(all_screens=True)
+        except Exception as ex:
+            self._capture_done(None, None)
+            messagebox.showerror(tr("Capture failed"), str(ex))
+            return
+        if box[2] > shot.width or box[3] > shot.height:
+            self._capture_done(None, None)
+            self.set_status(tr("⚠ That area is no longer on the screen (monitor layout changed)"))
+            return
+        self._capture_done(shot.crop(box), None, pos=box, src=src)
 
     def _grab(self):
         try:
@@ -2572,37 +2623,97 @@ class App:
         if mode == SCROLL_MODE:
             RegionSelector(self.root, shot, virtual_screen(), self._scroll_region)
         elif mode == "Full screen":
-            self._capture_done(shot, None)
+            self._capture_done(shot, None, pos=(0, 0, shot.width, shot.height))
         elif (mode == "Last region" and self.last_region and self.last_region[2] <= shot.width
               and self.last_region[3] <= shot.height):
             self._capture_done(shot.crop(self.last_region), self.last_region)
         else:
             RegionSelector(self.root, shot, virtual_screen(), self._capture_done)
 
-    def _capture_done(self, img, box):
+    def _capture_done(self, img, box, pos=None, src=None):
+        """`box` = rectangle chosen by the user (becomes the "Last region"); `pos` = where on the screen the
+        image was taken, kept with the screenshot for "Same spot"; `src` = screenshot this one re-captures."""
         self.busy = False
         self.root.deiconify()
         self.root.lift()
         self.root.focus_force()
+        if self.cmp:
+            self.cmp.show()
         if img is None:
             self.set_status(tr("Capture cancelled"))
             return
         if box:
             self.last_region = box
-        it = self._add_item(img.convert("RGB"))
+        pos = pos or box
+        kw = {"box": [int(v) for v in pos]} if pos else {}
+        if src is not None and src in self.items:
+            kw["src"] = src["id"]
+        it = self._add_item(img.convert("RGB"), **kw)
         self.set_status(tr("Screenshot #{n} added  ({w} × {h})", n=it["num"], w=img.width, h=img.height))
         if self.autocopy.get():
             self.copy_view(auto=True)
         if self.autosave.get():
             self._export_auto(it)
+        if src is not None and src in self.items:
+            self.set_status(tr("Screenshot #{n} re-captured the area of #{m}", n=it["num"], m=src["num"]))
+            if self.st.get("cmp_after_recapture", True):
+                self.open_compare(src, it)
 
-    def _add_item(self, img):
-        it = self.new_item(img)
+    # ===================================================================== compare
+    def _cmp_palette(self):
+        return {"panel": PANEL, "text": TEXT, "muted": MUTED, "accent": ACCENT, "canvas": CANVAS_BG}
+
+    def open_compare(self, a, b):
+        if self.cmp:
+            self.cmp.set_pair(a, b)
+        else:
+            self.cmp = compare.CompareWindow(self, a, b, self._cmp_palette())
+
+    def compare_partner(self, it):
+        """The screenshot `it` is best compared with: the one it re-captured, else the next older one."""
+        byid = {i["id"]: i for i in self.items}
+        if it.get("src") in byid and byid[it["src"]] is not it:
+            return byid[it["src"]]
+        for i in self.items:                    # a later re-capture of this one
+            if i.get("src") == it["id"]:
+                return i
+        k = self.items.index(it)
+        if k + 1 < len(self.items):
+            return self.items[k + 1]
+        return self.items[k - 1] if k > 0 else None
+
+    def compare_selected(self):
+        it = self.sel
+        if not it or len(self.items) < 2:
+            self.set_status(tr("Take at least two screenshots to compare them"))
+            return
+        other = self.compare_partner(it)
+        a, b = (other, it) if self.items.index(other) > self.items.index(it) else (it, other)
+        self.open_compare(a, b)
+
+    def mark_differences(self, it, boxes):
+        """Adds a red rectangle annotation around every difference on screenshot `it` (editable, undoable)."""
+        if not boxes:
+            self.set_status(tr("No differences found"))
+            return
+        if self.sel is not it:
+            self.select_item(it)
+        self.push_undo()
+        for x0, y0, x1, y1 in boxes:
+            self.sel["objs"].append(self._new_obj("rect", box=[x0 - 4, y0 - 4, x1 + 4, y1 + 4], color="#E53935",
+                                                  width=3, fill=None))
+        self.changed()
+        self.set_status(tr("{n} difference(s) marked on #{m}", n=len(boxes), m=it["num"]))
+
+    def _add_item(self, img, **kw):
+        it = self.new_item(img, **kw)
         self.items.insert(0, it)
         self.board.append(it)
         self._persist_new(it)
         self._prune()
         self._rebuild_list()
+        if self.cmp:
+            self.cmp._fill_lists()
         self.select_item(it)
         return it
 
@@ -2673,6 +2784,9 @@ class App:
             os.makedirs(SESSION_DIR, exist_ok=True)
             meta = {"id": it["id"], "num": it["num"], "time": it["time"].isoformat(), "objs": it["objs"],
                     "notes": it["notes"], "scale": it["scale"], "dirty": it.get("dirty", False)}
+            for k in ("box", "src"):
+                if it.get(k):
+                    meta[k] = it[k]
             with open(os.path.join(SESSION_DIR, it["id"] + ".json"), "w", encoding="utf-8") as f:
                 json.dump(meta, f, ensure_ascii=False)
         except Exception as ex:
@@ -2745,6 +2859,11 @@ class App:
                   "notes": str(m.get("notes") or ""), "time": t, "scale": m.get("scale"),
                   "num": int(m.get("num") or 0), "undo": [], "redo": [], "_final": None,
                   "dirty": bool(m.get("dirty", False))}
+            b = m.get("box")
+            if isinstance(b, list) and len(b) == 4 and all(isinstance(v, int) for v in b) and b[2] > b[0] and b[3] > b[1]:
+                it["box"] = b
+            if isinstance(m.get("src"), str):
+                it["src"] = m["src"]
             for o in it["objs"]:
                 o.setdefault("id", uuid.uuid4().hex[:8])
             self.items.insert(0, it)
@@ -2843,6 +2962,16 @@ class App:
         m.add_command(label=tr("Copy this screenshot"), command=lambda: self._copy_img(self.out_image(it), f"#{it['num']}"))
         m.add_command(label=tr("Save this screenshot as…"),
                       command=lambda: self._save_img(self.out_image(it), f"Capture_{it['num']}", [it]))
+        m.add_separator()
+        m.add_command(label=tr("Capture the same spot again"), command=lambda: self.recapture(it),
+                      state="normal" if it.get("box") else "disabled")
+        if self.sel and self.sel is not it:
+            m.add_command(label=tr("Compare with #{n}", n=self.sel["num"]),
+                          command=lambda s=self.sel: self.open_compare(
+                              *((it, s) if self.items.index(it) > self.items.index(s) else (s, it))))
+        elif len(self.items) > 1:
+            m.add_command(label=tr("Compare…"), command=lambda: (self.select_item(it), self.compare_selected()))
+        m.add_separator()
         if self.feat["feat_pin"].get():
             m.add_command(label=tr("Pin to screen"), command=lambda: self.pin_image(self.final(it)))
         if self.feat["feat_ocr"].get():
@@ -2901,6 +3030,8 @@ class App:
             return
         idx = self.items.index(it)
         self._forget_jobs(it)
+        if self.cmp:
+            self.cmp.item_removed(it)
         self.items.remove(it)
         if it in self.board:
             self.board.remove(it)
@@ -2960,6 +3091,7 @@ class App:
             self.tool.set("select")
             self._tool_changed()
         self.fit = True
+        self.bz, self.bcx, self.bcy = 1.0, 0.5, 0.5
         self._update_cards()
         self.render()
         self._schedule_copy(150)
@@ -3118,8 +3250,10 @@ class App:
         c.delete("content")
         self._cells = []
         items = self.board_items()
-        self.zoom_lbl.configure(text="")
-        self.size_lbl.configure(text=tr("Board: {n} screenshot(s)  ·  drag to reorder", n=len(items)))
+        self._bgeo = {}
+        self.zoom_lbl.configure(text=f"{self.bz:.1f}×" if self.bz > 1 else "")
+        self.size_lbl.configure(text=tr("Board: {n} screenshot(s)  ·  drag to reorder", n=len(items))
+                                + ("  ·  " + tr("synced zoom - Ctrl+0 to reset") if self.bz > 1 else ""))
         if not items:
             return
         cols, rows = grid_shape(len(items))
@@ -3134,16 +3268,29 @@ class App:
             c.create_rectangle(x0 + 2, y0 + 2, x0 + cell_w + 2, y0 + cell_h + 2, fill=SHADOW, outline="", tags="content")
             c.create_rectangle(x0, y0, x0 + cell_w, y0 + cell_h, fill=PANEL, outline=outline,
                                width=3 if (sel or hover is it) else 1, tags="content")
-            img = self.with_notes(it)
             tw, th = int(cell_w - 12), int(cell_h - 30)
-            key = (tw, th, id(img))
+            if self.bz > 1:     # synced zoom: every cell shows the same part (relative position) of its image
+                img = self.final(it)
+                vw, vh = img.width / self.bz, img.height / self.bz
+                left, top = self.bcx * img.width - vw / 2, self.bcy * img.height - vh / 2
+                key = (tw, th, id(img), self.bz, self.bcx, self.bcy)
+                src = (left, top, left + vw, top + vh)
+            else:
+                img = self.with_notes(it)
+                key = (tw, th, id(img))
+                src = None
             if it.get("_gkey") != key:
-                sc = min(tw / img.width, th / img.height, 1.0)
-                disp = img.resize((max(1, int(img.width * sc)), max(1, int(img.height * sc))),
-                                  Image.LANCZOS if sc < 1 else Image.NEAREST)
+                sw, sh = (vw, vh) if src else img.size
+                sc = min(tw / sw, th / sh, 1.0 if not src else 64.0)
+                size = (max(1, int(sw * sc)), max(1, int(sh * sc)))
+                disp = img.resize(size, Image.LANCZOS if sc < 1 else (Image.NEAREST if sc >= 3 else Image.BICUBIC),
+                                  box=src)
                 it["_gphoto"] = ImageTk.PhotoImage(disp)
                 it["_gkey"] = key
-            c.create_image(x0 + cell_w / 2, y0 + 6 + th / 2, image=it["_gphoto"], tags="content")
+            gx, gy = x0 + cell_w / 2, y0 + 6 + th / 2
+            c.create_image(gx, gy, image=it["_gphoto"], tags="content")
+            pw, ph = it["_gphoto"].width(), it["_gphoto"].height()
+            self._bgeo[it["id"]] = (gx - pw / 2, gy - ph / 2, pw, ph)
             c.create_text(x0 + 10, y0 + cell_h - 12, anchor="w", fill=ACCENT if sel else MUTED, font=UI_S, tags="content",
                           text=tr("Position {k}", k=k + 1) + f"   ·   #{it['num']}   {it['time']:%H:%M:%S}"
                                + ("   ·   " + tr("annotated") if it["objs"] else "")
@@ -3157,7 +3304,44 @@ class App:
         return None
 
     # ===================================================================== zoom / pan
+    def board_zoom(self, f, cx=None, cy=None):
+        """Zooms all board cells together, keeping the point under the cursor in place."""
+        c = self.canvas
+        if cx is None:
+            cx, cy = c.winfo_width() / 2, c.winfo_height() / 2
+        it = self._cell_at(cx, cy)
+        g = self._bgeo.get(it["id"]) if it else None
+        u = min(1.0, max(0.0, (cx - g[0]) / g[2])) if g else 0.5
+        v = min(1.0, max(0.0, (cy - g[1]) / g[3])) if g else 0.5
+        z0 = self.bz
+        px, py = self.bcx - 0.5 / z0 + u / z0, self.bcy - 0.5 / z0 + v / z0   # relative image point under cursor
+        self.bz = min(32.0, max(1.0, z0 * f))
+        if self.bz < 1.02:
+            self.bz, self.bcx, self.bcy = 1.0, 0.5, 0.5
+        else:
+            self.bcx, self.bcy = px + (0.5 - u) / self.bz, py + (0.5 - v) / self.bz
+            self._clamp_board()
+        self.render()
+
+    def _clamp_board(self):
+        h = 0.5 / self.bz
+        self.bcx = min(1 - h, max(h, self.bcx))
+        self.bcy = min(1 - h, max(h, self.bcy))
+
+    def _board_pan(self, dx, dy):
+        """Pans all zoomed board cells by (dx, dy) canvas pixels."""
+        g = next(iter(self._bgeo.values()), None)
+        if self.bz <= 1 or not g:
+            return
+        self.bcx -= dx / g[2] / self.bz
+        self.bcy -= dy / g[3] / self.bz
+        self._clamp_board()
+        self.request_render()
+
     def zoom_at(self, f, cx=None, cy=None):
+        if self.view_n() != 1 and self.items:
+            self.board_zoom(f, cx, cy)
+            return
         if self.view_n() != 1 or not self.sel:
             return
         c = self.canvas
@@ -3171,6 +3355,7 @@ class App:
 
     def zoom_fit(self):
         self.fit = True
+        self.bz, self.bcx, self.bcy = 1.0, 0.5, 0.5
         self.render()
 
     def zoom_100(self):
@@ -3179,9 +3364,13 @@ class App:
         self.zoom_at(1.0 / self.s)
 
     def _pan_move(self, e):
-        if self.view_n() != 1 or not hasattr(self, "_pan"):
+        if not hasattr(self, "_pan"):
             return
         lx, ly = self._pan
+        if self.view_n() != 1:
+            self._pan = (e.x, e.y)
+            self._board_pan(e.x - lx, e.y - ly)
+            return
         self.vx -= (e.x - lx) / self.s
         self.vy -= (e.y - ly) / self.s
         self._pan = (e.x, e.y)
@@ -3195,7 +3384,15 @@ class App:
                 self.list_canvas.yview_scroll(int(-e.delta / 120), "units")
                 return
             if w is self.canvas:
-                if self.view_n() != 1 or not self.sel:
+                if self.view_n() != 1:
+                    cx, cy = e.x_root - self.canvas.winfo_rootx(), e.y_root - self.canvas.winfo_rooty()
+                    if e.state & 0x4:
+                        self.board_zoom(1.15 if e.delta > 0 else 1 / 1.15, cx, cy)
+                    elif self.bz > 1:
+                        step = 80 * (1 if e.delta < 0 else -1)
+                        self._board_pan(-step if e.state & 0x1 else 0, 0 if e.state & 0x1 else -step)
+                    return
+                if not self.sel:
                     return
                 if e.state & 0x4:
                     self.zoom_at(1.15 if e.delta > 0 else 1 / 1.15, e.x_root - self.canvas.winfo_rootx(),
@@ -4330,7 +4527,11 @@ class App:
         if typing:
             return
         if ctrl:
-            if ks == "delete" and shift:
+            if ks == "r" and shift:
+                self.recapture()
+            elif ks == "c" and shift:
+                self.compare_selected()
+            elif ks == "delete" and shift:
                 self.delete_many(list(self.items))
             elif ks == "c":
                 self.copy_view()
@@ -4882,6 +5083,8 @@ class App:
             return
         for it in items:
             self._forget_jobs(it)
+            if self.cmp:
+                self.cmp.item_removed(it)
             self._delete_files(it)
             self.items.remove(it)
             if it in self.board:
@@ -5144,6 +5347,8 @@ class App:
                 m = self.q.get_nowait()
                 if m[0] == "capture":
                     self.new_capture()
+                elif m[0] == "recapture":
+                    self.recapture()
                 elif m[0] == "hotkey_failed":
                     self.set_status(tr("⚠ Global hotkey Ctrl+Alt+S is used by another program - use the button or Ctrl+N"))
                 elif m[0] == "copied":
@@ -5205,6 +5410,8 @@ class App:
         else:
             for it in self.items:
                 self._delete_files(it)
+        if self.cmp:
+            self.cmp.close()
         try:
             self.st["geometry"] = self.root.geometry()
         except Exception:

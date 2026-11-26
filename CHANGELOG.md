@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Same spot** (⟳ button, `Ctrl+Shift+R`, global `Ctrl+Alt+R`, or history-card menu): captures exactly the same screen rectangle as the selected screenshot again and adds it as a new screenshot. Every capture now keeps its screen position (also across restarts).
+- **Compare** (◧ button, `Ctrl+Shift+C`, or history-card menu): before / after window with a draggable slider or side by side, always with one shared zoom and pan. **Highlight differences** tints changed pixels red and boxes each changed area (adjustable tolerance); "Mark differences on 'After'" turns the boxes into editable rectangles; "Copy comparison" copies both images side by side. Opens by itself after a same-spot capture (can be switched off). Images of different sizes are compared on their overlapping top-left part.
+- **Synced board zoom**: Ctrl+wheel over a board cell zooms all cells to the same place; wheel / middle-drag pans them together; Ctrl+0 or Fit resets.
 - **Board report** (Save menu → "Export board as a report (PDF / Word)…"): the screenshots of the current view with a title, the date, each screenshot's notes and measurements, and a measurement summary table. Saved as PDF (A4) or Word .docx. No new dependency: the .docx is written directly, so the exe and the Store package need nothing extra.
 - **Measurement table** (Save menu → "Copy board measurements as a table (Excel)"): every distance, area, perimeter, angle and scale reference on the board, copied as a table that pastes into Excel.
 - **3D look for shapes**: select a rectangle, ellipse or area polygon and click **Make 3D** (right panel or right-click menu) to turn it into a shaded box, cylinder or prism. Drag the orange ◆ handle to set the depth and the angle; **Pocket (cut)** cuts a hole into the front face. Hidden edges show dashed through see-through solids. It is a drawing on the screenshot (no real 3D model) and is flattened like any other annotation when copying or exporting.
