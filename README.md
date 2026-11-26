@@ -20,6 +20,8 @@ The built-in Snipping Tool keeps one capture at a time. MultiCapture keeps **all
 - **Auto-copy**: the current view (single image or whole grid) is put on the clipboard and pastes straight into Outlook, Word, Excel or Teams.
 - **Editable annotations**: pen, highlighter, line, arrow, rectangle, ellipse, numbered markers, stamps, blur and callouts. Everything stays movable and editable.
 - **Word-like text boxes**: font, size, bold / italic / underline, colour, background, border and alignment, with a ✥ grip to move them.
+- **Tables**: choose rows × columns, drag onto the image, type in the cells (Tab / Enter to move), resize columns and rows, restyle at any time.
+- **Symbol panel**: ✓ ✗ ★ → ⚠ ± ° Ø ⌀ ≤ ≥ ① α … in one click, into text, table cells or as a stamp.
 - **PDF-style measurement**: distance, perimeter, area and angle, with a calibrated scale.
 - **Same spot + compare**: ⟳ Same spot (`Ctrl+Shift+R`, or `Ctrl+Alt+R` from anywhere) captures exactly the same screen area again; a Compare window shows before / after with a draggable slider or side by side, and highlights the differences with red boxes. Board cells can be zoomed and panned together (synced zoom).
 - **Paint-style tools**: eraser, fill bucket, colour picker, crop, rotate / flip, resize, and a blank canvas to draw on (`Ctrl+Shift+N`). Fills and erasing stay undoable and editable.
