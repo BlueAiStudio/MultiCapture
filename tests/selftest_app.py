@@ -453,14 +453,12 @@ assert mc.fit_geometry("garbage", (0, 0, 100, 100)) == "garbage"
 print("window kept on screen OK")
 
 # the header switches to icons only when it does not fit, and back
-app._set_head_compact(False)     # the CI screen is small: the header may already be compact
-pump(0.2)
+# (no pumping in between: on the small CI screen the header refits itself on every <Configure>)
+app._set_head_compact(False)
 full = {w: w.cget("text") for w in app._head_labels()}
 app._set_head_compact(True)
-pump(0.2)
-assert app.save_btn.cget("text") != full[app.save_btn]
+assert app.save_btn.cget("text") != full[app.save_btn], app.save_btn.cget("text")
 app._set_head_compact(False)
-pump(0.2)
 assert all(w.cget("text") == t for w, t in full.items())
 root.geometry(f"{root.minsize()[0]}x700")
 pump(0.5)
