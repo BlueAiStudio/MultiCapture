@@ -251,5 +251,21 @@ app.copy_measure_table()
 assert root.clipboard_get().splitlines()[0].split("\t") == list(app.table_header())
 print("board report OK")
 
+# same-spot recapture on the real screen, then the compare window
+first = app.items[0]
+first["box"] = [100, 100, 500, 400]
+app.st["cmp_after_recapture"] = True
+app.recapture(first)
+pump(1.5)
+assert not app.busy and app.sel is not first, "recapture did not add a screenshot"
+assert app.sel["size"] == (400, 300) and app.sel["src"] == first["id"], app.sel
+assert app.cmp is not None and app.cmp.b is app.sel
+app.cmp.mode.set("side")
+app.cmp._mode_changed()
+pump(0.3)
+assert app.cmp.result_image().width == first["size"][0] + app.cmp.GAP + 400
+app.cmp.close()
+print("same spot + compare OK")
+
 app._shutdown()
 print("ALL OK")
