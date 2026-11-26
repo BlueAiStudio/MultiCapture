@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **Select several annotations**: with Select, `Ctrl` / `Shift` + click adds or removes one, `Shift` + drag on an empty spot selects with a box, `Ctrl+A` selects all. Move them together (drag or arrow keys), Delete, Duplicate, Bring to front / Send to back, and change colour, width, fill or font for all of them at once, each in one undo step.
+- **Select several screenshots** in the history (or on the board): `Ctrl` + click toggles, `Shift` + click takes a range, `Ctrl+A` on the board takes all, Esc ends it. Right-click: copy together as one picture, compare the two, put at the end of the board, save as PNG files or one PDF, delete. The Delete key deletes them all after one confirmation; `Ctrl+Shift+C` compares the two selected.
+
 ## 1.5.0
 
 - **Undo / Redo buttons** in the top bar (`Ctrl+Z` / `Ctrl+Y`, and now also `Ctrl+Shift+Z` for redo).

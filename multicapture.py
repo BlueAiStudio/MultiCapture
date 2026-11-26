@@ -193,7 +193,7 @@ SYMBOL_GROUPS = [
 ]
 
 TOOLS = [
-    ("select", "Select / move / resize  (V)", "v"),
+    ("select", "Select / move / resize  (V)\nCtrl / Shift + click: select several · Shift + drag: select with a box · Ctrl+A: all", "v"),
     None,
     ("pen", "Pen  (P)", "p"),
     ("highlight", "Highlighter  (H)", "h"),
@@ -2365,7 +2365,10 @@ class App:
         self.items = []          # history, newest first
         self.board = []          # board order
         self.sel = None          # selected screenshot
-        self.sel_obj = None      # selected annotation
+        self.sel_obj = None      # selected annotation (the "primary" one when several are selected)
+        self.multi = []          # all selected annotations (Ctrl / Shift + click, Shift + drag a box, Ctrl+A)
+        self.sel_items = []      # screenshots selected together in the history (Ctrl / Shift + click)
+        self._sel_anchor = None  # where a Shift + click range in the history starts
         self.drag = None
         self.building = None     # polyline / polygon / angle in progress
         self._tool_before = "select"   # the colour picker goes back to this tool
@@ -3212,6 +3215,10 @@ class App:
         if not it or len(self.items) < 2:
             self.set_status(tr("Take at least two screenshots to compare them"))
             return
+        picked = self.picked_items()
+        if len(picked) == 2:                 # two selected in the history (Ctrl + click): compare those
+            self.open_compare(picked[1], picked[0])
+            return
         other = self.compare_partner(it)
         a, b = (other, it) if self.items.index(other) > self.items.index(it) else (it, other)
         self.open_compare(a, b)
@@ -3452,7 +3459,7 @@ class App:
         cap = tk.Label(fr, bg=PANEL, font=UI_S, fg=MUTED, anchor="w")
         cap.pack(fill="x")
         for w in (fr, img, cap):
-            w.bind("<Button-1>", lambda e, i=it: self.select_item(i))
+            w.bind("<Button-1>", lambda e, i=it: self._card_click(e, i))
             w.bind("<Double-Button-1>", lambda e, i=it: (self.set_view("Single"), self.select_item(i)))
             w.bind("<Button-3>", lambda e, i=it: self._card_menu(e, i))
         self.cards[it["id"]] = (fr, img, cap)
@@ -3467,11 +3474,12 @@ class App:
         c[2].configure(text=f"#{it['num']}  {it['time']:%d/%m %H:%M:%S}   {it['size'][0]}×{it['size'][1]}{marks}")
 
     def _update_cards(self):
+        picked = {id(i) for i in self.picked_items()} if len(self.picked_items()) > 1 else {id(self.sel)}
         for it in self.items:
             c = self.cards.get(it["id"])
             if not c:
                 continue
-            sel = it is self.sel
+            sel = id(it) in picked
             bg = ACCENT_L if sel else PANEL
             c[0].configure(bg=bg, highlightbackground=ACCENT if sel else PANEL)
             c[1].configure(bg=bg)
@@ -3484,7 +3492,94 @@ class App:
             c[1].configure(image=self._thumb(it))
             self._card_caption(it)
 
+    # ---------------------------------------------------------------- several screenshots selected
+    def picked_items(self):
+        """The screenshots selected together in the history (Ctrl / Shift + click), newest first;
+        just the open one when nothing else is selected."""
+        ids = {id(i) for i in self.sel_items}
+        if self.sel is not None:
+            ids.add(id(self.sel))
+        return [it for it in self.items if id(it) in ids]
+
+    def select_items(self, items, current=None):
+        items = [it for it in self.items if any(it is x for x in items)]
+        if not items:
+            return
+        cur = current if current is not None and any(current is x for x in items) else \
+            (self.sel if any(self.sel is x for x in items) else items[0])
+        anchor = self._sel_anchor
+        if cur is not self.sel:
+            self.select_item(cur)
+        self._sel_anchor = anchor if anchor in self.items else cur
+        self.sel_items = items
+        self._update_cards()
+        self._items_status()
+
+    def _items_status(self):
+        n = len(self.picked_items())
+        if n > 1:
+            self.set_status(tr("{n} screenshots selected  ·  right-click for what to do with them · Delete removes them", n=n))
+
+    def _card_click(self, e, it):
+        """Click = open; Ctrl + click = add / remove; Shift + click = everything from the last clicked one."""
+        ctrl, shift = bool(e.state & 0x4), bool(e.state & 0x1)
+        cur = self.picked_items()
+        if shift and self._sel_anchor in self.items:
+            a, b = sorted((self.items.index(self._sel_anchor), self.items.index(it)))
+            rng = self.items[a:b + 1]
+            self.select_items((cur + rng) if ctrl else rng, it)
+        elif ctrl:
+            if not any(x is it for x in cur):
+                self.select_items(cur + [it], it)
+            elif len(cur) > 1:
+                rest = [x for x in cur if x is not it]
+                self.select_items(rest, self.sel if self.sel is not it else rest[0])
+            self._sel_anchor = it
+        else:
+            self.select_item(it)
+
+    def _picked_board(self, items):
+        """Put the screenshots at the end of the board, oldest first (so the newest is last)."""
+        for it in reversed(items):
+            if it in self.board:
+                self.board.remove(it)
+            self.board.append(it)
+            if it.get("solo"):
+                it["solo"] = False
+                self._save_meta(it)
+        self._save_board()
+        self._update_cards()
+        self.render()
+        self._schedule_copy()
+        self.set_status(tr("{n} screenshot(s) put at the end of the board", n=len(items)))
+
+    def _picked_copy(self, items):
+        imgs = [self.with_notes(i) for i in reversed(items)]
+        img = self.framed(compose_grid(imgs), None, len(imgs))
+        self._copy_img(img, tr("{n} screenshots", n=len(items)))
+
+    def _group_menu(self, e, items):
+        n = len(items)
+        m = tk.Menu(self.root, tearoff=0, font=UI)
+        m.add_command(label=tr("{n} screenshots selected", n=n), state="disabled")
+        m.add_separator()
+        m.add_command(label=tr("Copy together as one picture"), command=lambda: self._picked_copy(items))
+        if n == 2:
+            a, b = items                         # newest first: the older one is "before"
+            m.add_command(label=tr("Compare these two"), command=lambda: self.open_compare(b, a))
+        m.add_command(label=tr("Put at the end of the board"), command=lambda: self._picked_board(items))
+        m.add_separator()
+        m.add_command(label=tr("Save as PNG files…"), command=lambda: self.save_all_png(items))
+        m.add_command(label=tr("Save in one PDF…"), command=lambda: self.save_all_pdf(items=items))
+        m.add_separator()
+        m.add_command(label=tr("Delete {n} screenshots…", n=n), command=lambda: self.delete_many(items))
+        m.tk_popup(e.x_root, e.y_root)
+
     def _card_menu(self, e, it):
+        picked = self.picked_items()
+        if len(picked) > 1 and any(x is it for x in picked):
+            self._group_menu(e, picked)
+            return
         m = tk.Menu(self.root, tearoff=0, font=UI)
         m.add_command(label=tr("Open"), command=lambda: (self.set_view("Single"), self.select_item(it)))
         m.add_command(label=tr("Copy this screenshot"), command=lambda: self._copy_img(self.out_image(it), f"#{it['num']}"))
@@ -3536,6 +3631,8 @@ class App:
             self.sel_obj = None
             self.fit = True
         self.sel = it
+        self.sel_items = [it] if it else []
+        self._sel_anchor = it
         self._load_notes()
         self._update_cards()
         self._update_panel()
@@ -3756,10 +3853,26 @@ class App:
             a, b = self.to_canvas(self.editing["x"], self.editing["y"])
             self._draw_grip(a - 4, b - 4)
             return
-        o = self.sel_obj
-        if not o or o not in (self.sel["objs"] if self.sel else []):
-            return
         c = self.canvas
+        d = self.drag
+        if d and d.get("mode") == "band":      # Shift / Ctrl + drag: the selection box
+            a, b = self.to_canvas(*d["box"][:2])
+            cc, dd = self.to_canvas(*d["box"][2:])
+            c.create_rectangle(a, b, cc, dd, outline=ACCENT, dash=(3, 3), width=1, tags="content")
+        group = self.selected_objs()
+        if len(group) > 1:                     # several selected: a dashed box around each, one grip for all
+            bx = [obj_bbox(g) for g in group]
+            for g, (x0, y0, x1, y1) in zip(group, bx):
+                a, b = self.to_canvas(x0, y0)
+                cc, dd = self.to_canvas(x1, y1)
+                c.create_rectangle(a - 3, b - 3, cc + 3, dd + 3, outline=ACCENT, width=2 if g is self.sel_obj else 1,
+                                   dash=(4, 3), tags="content")
+            a, b = self.to_canvas(min(v[0] for v in bx), min(v[1] for v in bx))
+            self._draw_grip(a - 4, b - 4)
+            return
+        o = self.sel_obj
+        if not group:
+            return
         x0, y0, x1, y1 = obj_bbox(o)
         a, b = self.to_canvas(x0, y0)
         cc, d = self.to_canvas(x1, y1)
@@ -3793,6 +3906,7 @@ class App:
         c.delete("content")
         self._cells = []
         items = self.board_items()
+        picked = {id(i) for i in self.picked_items()}
         self._bgeo = {}
         self.zoom_lbl.configure(text=f"{self.bz:.1f}×" if self.bz > 1 else "")
         self.size_lbl.configure(text=tr("Board: {n} screenshot(s)  ·  drag to reorder", n=len(items))
@@ -3806,7 +3920,7 @@ class App:
         for k, it in enumerate(items):
             r, col = divmod(k, cols)
             x0, y0 = gap + col * (cell_w + gap), gap + r * (cell_h + gap)
-            sel = it is self.sel
+            sel = id(it) in picked
             outline = "#F59E0B" if hover is it else (ACCENT if sel else BORDER)
             c.create_rectangle(x0 + 2, y0 + 2, x0 + cell_w + 2, y0 + cell_h + 2, fill=SHADOW, outline="", tags="content")
             c.create_rectangle(x0, y0, x0 + cell_w, y0 + cell_h, fill=PANEL, outline=outline,
@@ -3988,10 +4102,13 @@ class App:
         self._update_undo_btns()
         o = self.sel_obj
         kind = o["type"] if o else self.tool.get()
-        if o:
+        ng = len(self.selected_objs())
+        if o and ng > 1:
+            self.sel_lbl.configure(text=tr("{n} annotations selected", n=ng))
+        elif o:
             self.sel_lbl.configure(text=tr(TOOL_NAMES.get(kind, kind)) + (tr("  (callout)") if kind == "text" and o.get("leader") else ""))
         else:
-            self.sel_lbl.configure(text=tr("Nothing selected  ·  click an annotation") if self.tool.get() == "select"
+            self.sel_lbl.configure(text=tr("Nothing selected  ·  click an annotation  ·  Ctrl / Shift + click for several") if self.tool.get() == "select"
                                    else tr("New: {name}", name=tr(TOOL_NAMES.get(kind, kind))))
         show = {
             "sec_sel": True,
@@ -4145,12 +4262,30 @@ class App:
                       table_cols=max(1, min(TABLE_MAX, int(self.table_cols.get()))))
         except (ValueError, tk.TclError):
             pass
-        o = self.sel_obj
-        if not o or not self.sel or self.view_n() != 1 or o not in self.sel["objs"]:
+        objs = self.selected_objs() if self.view_n() == 1 else []
+        if not objs:
             return
-        t = o["type"]
-        before = json.dumps(o, sort_keys=True)
         snap = json.dumps(self.sel["objs"])
+        changed = False
+        for o in objs:                # several selected: the change applies to every one it fits
+            before = json.dumps(o, sort_keys=True)
+            self._apply_prop(o, key)
+            changed = changed or json.dumps(o, sort_keys=True) != before
+        if not changed:
+            return
+        gid = ",".join(o["id"] for o in objs)
+        lid, lkey, lt = self._last_prop
+        if not (lid == gid and lkey == key and time.time() - lt < 1.5):
+            self._push_undo_snapshot(snap)
+        self._last_prop = (gid, key, time.time())
+        if self.editing is not None and any(o is self.editing for o in objs):
+            self._style_editor()
+        if self.cell_edit and any(o is self.cell_edit["obj"] for o in objs):
+            self._style_cell_editor()
+        self.changed()
+
+    def _apply_prop(self, o, key):
+        t = o["type"]
         if key == "color" and t != "mosaic":
             o["color"] = self.color
         elif key == "width":
@@ -4176,11 +4311,11 @@ class App:
             elif t in ("dist", "calib", "perim", "area", "angle"):
                 o["fs"] = max(8, round(self._fs() * 0.7))
         elif t == "text" and key in ("family", "bold", "italic", "underline", "align", "tbg", "border"):
-            o["family"] = self.family.get()
-            o["bold"], o["italic"], o["underline"] = self.bold.get(), self.italic.get(), self.underline.get()
-            o["align"] = self.align.get()
-            o["bg"] = self.tbg_color if self.tbg_on.get() else None
-            o["border"] = self.border.get()
+            # only the property that changed, so several selected texts keep their other styles
+            if key == "tbg":
+                o["bg"] = self.tbg_color if self.tbg_on.get() else None
+            else:
+                o[key] = getattr(self, key).get()
         elif key == "stamp" and t == "stamp":
             o["sym"] = self.stamp.get()
         elif key == "img_border" and t == "image":
@@ -4189,30 +4324,17 @@ class App:
         elif key == "img_alpha" and t == "image":
             o["alpha"] = int(self.img_alpha.get())
         elif t == "table" and key in ("family", "bold", "italic", "align"):
-            o["family"] = self.family.get()
-            o["bold"], o["italic"] = self.bold.get(), self.italic.get()
-            o["align"] = self.align.get()
+            o[key] = getattr(self, key).get()
             table_fit(o)
         elif t == "table" and key == "table_size":
             self.commit_edit()
-            table_set_size(o, st["table_rows"], st["table_cols"])
+            table_set_size(o, self.st["table_rows"], self.st["table_cols"])
             table_fit(o)
         elif t == "table" and key == "table_header":
             o["header"] = self.tbl_header_var.get()
             table_fit(o)
         elif t == "table" and key == "table_bg":
             o["bg"] = "#FFFFFF" if self.tbl_bg_var.get() else None
-        if json.dumps(o, sort_keys=True) == before:
-            return
-        lid, lkey, lt = self._last_prop
-        if not (lid == o["id"] and lkey == key and time.time() - lt < 1.5):
-            self._push_undo_snapshot(snap)
-        self._last_prop = (o["id"], key, time.time())
-        if self.editing is o:
-            self._style_editor()
-        if self.cell_edit and self.cell_edit["obj"] is o:
-            self._style_cell_editor()
-        self.changed()
 
     def _load_props(self, o):
         self._loading = True
@@ -4357,9 +4479,71 @@ class App:
 
     def select_obj(self, o):
         self.sel_obj = o
+        self.multi = [o] if o else []
         if o:
             self._load_props(o)
         self._update_panel()
+
+    def _multi_status(self):
+        n = len(self.selected_objs())
+        if n > 1:
+            self.set_status(tr("{n} annotations selected  ·  drag to move them together · Delete · Ctrl+D · "
+                               "colour and size apply to all  ·  Ctrl / Shift + click adds or removes one", n=n))
+
+    def selected_objs(self):
+        """Every selected annotation of the open screenshot, in drawing order (bottom first).
+        Code that sets sel_obj directly to another object (or to None) ends a group selection."""
+        objs = self.sel["objs"] if self.sel else []
+        o = self.sel_obj
+        if not o or not any(x is o for x in objs):
+            return []
+        if not any(m is o for m in self.multi):
+            return [o]
+        ids = {id(m) for m in self.multi}
+        return [x for x in objs if id(x) in ids]
+
+    def set_selection(self, objs, primary=None):
+        objs = list(objs)
+        if not objs:
+            self.select_obj(None)
+            return
+        p = primary if primary is not None and any(x is primary for x in objs) else objs[-1]
+        self.sel_obj = p
+        self.multi = objs
+        self._load_props(p)
+        self._update_panel()
+
+    def toggle_obj(self, o):
+        """Ctrl / Shift + click: add an annotation to the selection, or take it out again."""
+        cur = self.selected_objs()
+        if any(x is o for x in cur):
+            rest = [x for x in cur if x is not o]
+            self.set_selection(rest, self.sel_obj if self.sel_obj is not o else None)
+            return False
+        self.set_selection(cur + [o], o)
+        return True
+
+    def select_all_objs(self):
+        if self.view_n() != 1 or not self.sel:
+            return
+        self.commit_edit()
+        self.cancel_building()
+        if self.tool.get() != "select":
+            self.set_tool("select")
+        objs = list(self.sel["objs"])
+        self.set_selection(objs)
+        self.render()
+        if objs:
+            self.set_status(tr("{n} annotations selected", n=len(objs)))
+
+    def _objs_in_box(self, box):
+        x0, y0, x1, y1 = norm_box(box)
+        out = []
+        for o in self.sel["objs"]:
+            a, b, c, d = obj_bbox(o)
+            if a >= x0 and b >= y0 and c <= x1 and d <= y1:
+                out.append(o)
+        return out
 
     def hit(self, x, y, types=None):
         tol = 6 / self.s
@@ -4371,12 +4555,15 @@ class App:
         return None
 
     def delete_obj(self):
-        o = self.sel_obj
-        if not o or not self.sel or o not in self.sel["objs"]:
+        objs = self.selected_objs()
+        if not objs:
             return
         self.push_undo()
-        self.sel["objs"].remove(o)
-        self.sel_obj = None
+        ids = {id(o) for o in objs}
+        self.sel["objs"] = [x for x in self.sel["objs"] if id(x) not in ids]
+        self.select_obj(None)
+        if len(objs) > 1:
+            self.set_status(tr("{n} annotation(s) deleted", n=len(objs)))
         self.changed()
 
     def toggle_solid(self):
@@ -4405,34 +4592,40 @@ class App:
         self._refocus()
 
     def dup_obj(self):
-        o = self.sel_obj
-        if not o or not self.sel or o not in self.sel["objs"]:
+        objs = self.selected_objs()
+        if not objs:
             return
         self.push_undo()
-        n = copy.deepcopy(o)
-        n["id"] = uuid.uuid4().hex[:8]
-        move_obj(n, 14 / self.s, 14 / self.s)
-        if n["type"] == "marker":
-            n["n"] = self._next_marker()
-        self.sel["objs"].append(n)
-        self.select_obj(n)
+        new, primary = [], None
+        for o in objs:
+            n = copy.deepcopy(o)
+            n["id"] = uuid.uuid4().hex[:8]
+            move_obj(n, 14 / self.s, 14 / self.s)
+            if n["type"] == "marker":
+                n["n"] = self._next_marker()
+            self.sel["objs"].append(n)
+            new.append(n)
+            if o is self.sel_obj:
+                primary = n
+        self.set_selection(new, primary)
+        self.changed()
+
+    def _restack(self, front):
+        """Bring the selected annotations to the front (or send them to the back), keeping their own order."""
+        objs = self.selected_objs()
+        if not objs:
+            return
+        self.push_undo()
+        ids = {id(o) for o in objs}
+        rest = [x for x in self.sel["objs"] if id(x) not in ids]
+        self.sel["objs"] = rest + objs if front else objs + rest
         self.changed()
 
     def obj_front(self):
-        o = self.sel_obj
-        if o and self.sel and o in self.sel["objs"]:
-            self.push_undo()
-            self.sel["objs"].remove(o)
-            self.sel["objs"].append(o)
-            self.changed()
+        self._restack(True)
 
     def obj_back(self):
-        o = self.sel_obj
-        if o and self.sel and o in self.sel["objs"]:
-            self.push_undo()
-            self.sel["objs"].remove(o)
-            self.sel["objs"].insert(0, o)
-            self.changed()
+        self._restack(False)
 
     def clear_marks(self):
         if self.sel and self.sel["objs"] and messagebox.askyesno(tr("Clear"), tr("Remove all annotations from this screenshot?"),
@@ -4952,7 +5145,18 @@ class App:
         x, y = self.to_img(e.x, e.y)
         o = self.hit(x, y)
         m = tk.Menu(self.root, tearoff=0, font=UI)
-        if o:
+        group = self.selected_objs()
+        if o and len(group) > 1 and any(g is o for g in group):   # right-click on one of several selected
+            self.set_selection(group, o)
+            self.render()
+            m.add_command(label=tr("{n} annotations selected", n=len(group)), state="disabled")
+            m.add_separator()
+            m.add_command(label=tr("Duplicate"), command=self.dup_obj, accelerator="Ctrl+D")
+            m.add_command(label=tr("Bring to front"), command=self.obj_front)
+            m.add_command(label=tr("Send to back"), command=self.obj_back)
+            m.add_separator()
+            m.add_command(label=tr("Delete"), command=self.delete_obj, accelerator="Del")
+        elif o:
             self.select_obj(o)
             self.render()
             if o["type"] == "text":
@@ -4978,6 +5182,8 @@ class App:
             m.add_separator()
             m.add_command(label=tr("Delete"), command=self.delete_obj, accelerator="Del")
         else:
+            if self.sel["objs"]:
+                m.add_command(label=tr("Select all annotations"), command=self.select_all_objs, accelerator="Ctrl+A")
             m.add_command(label=tr("Copy current view"), command=self.copy_view, accelerator="Ctrl+C")
             m.add_command(label=tr("Undo"), command=self.undo, accelerator="Ctrl+Z")
             m.add_command(label=tr("Redo"), command=self.redo, accelerator="Ctrl+Y")
@@ -5011,7 +5217,8 @@ class App:
             o = self.editing or self.sel_obj
             if not self.editing:
                 self.push_undo()
-            self.drag = {"mode": "grip", "obj": o, "last": self.to_img(e.x, e.y), "moved": False}
+            group = [o] if self.editing else (self.selected_objs() or [o])
+            self.drag = {"mode": "grip", "obj": o, "objs": group, "last": self.to_img(e.x, e.y), "moved": False}
             self.canvas.configure(cursor="fleur")
             return
         if self.editing:
@@ -5024,7 +5231,9 @@ class App:
             self._building_click(x, y)
             return
         if t == "select":
-            if self.sel_obj and self.sel_obj in it["objs"]:
+            add = bool(e.state & 0x5)          # Ctrl or Shift held: add to / take out of the selection
+            cur = self.selected_objs()
+            if len(cur) == 1 and not add:      # handles only when one annotation is selected
                 for i, (hx, hy) in enumerate(handles(self.sel_obj)):
                     cx, cy = self.to_canvas(hx, hy)
                     if abs(cx - e.x) <= 7 and abs(cy - e.y) <= 7:
@@ -5032,11 +5241,22 @@ class App:
                         self.drag = {"mode": "handle", "i": i, "moved": False}
                         return
             o = self.hit(x, y)
-            if o:
-                self.select_obj(o)
+            if o and add:
+                if self.toggle_obj(o):
+                    self.push_undo()
+                    self.drag = {"mode": "move", "last": (x, y), "moved": False}
+                    self.canvas.configure(cursor="fleur")
+                self._multi_status()
+            elif o:
+                if any(m is o for m in cur):   # a click on one of several selected: keep them all, drag them together
+                    self.set_selection(cur, o)
+                else:
+                    self.select_obj(o)
                 self.push_undo()
                 self.drag = {"mode": "move", "last": (x, y), "moved": False}
                 self.canvas.configure(cursor="fleur")
+            elif add:                          # Ctrl / Shift + drag on empty space: select with a box
+                self.drag = {"mode": "band", "box": [x, y, x, y], "start": (e.x, e.y), "keep": cur}
             else:
                 self.select_obj(None)
                 self.drag = {"mode": "pan", "last": (e.x, e.y)}
@@ -5124,12 +5344,16 @@ class App:
                 self.canvas.configure(cursor="fleur")
         elif m == "move":
             lx, ly = d["last"]
-            move_obj(self.sel_obj, x - lx, y - ly)
+            for o in self.selected_objs():
+                move_obj(o, x - lx, y - ly)
             d["last"] = (x, y)
             d["moved"] = True
+        elif m == "band":
+            d["box"][2:] = [x, y]
         elif m == "grip":
             lx, ly = d["last"]
-            move_obj(d["obj"], x - lx, y - ly)
+            for o in d["objs"]:
+                move_obj(o, x - lx, y - ly)
             d["last"] = (x, y)
             d["moved"] = True
             if self.editing is d["obj"]:
@@ -5206,12 +5430,23 @@ class App:
             else:
                 self.pop_undo()
             return
+        if m == "band":
+            sx, sy = d["start"]
+            if abs(e.x - sx) + abs(e.y - sy) >= 4:
+                got = self._objs_in_box(d["box"])
+                keep = d["keep"]
+                ids = {id(o) for o in keep}
+                self.set_selection(keep + [o for o in got if id(o) not in ids])
+                self._multi_status()
+            self.render()
+            return
         if m in ("move", "handle"):
             if not d["moved"]:
                 self.pop_undo()
             else:
-                if self.sel_obj and "box" in self.sel_obj:
-                    self.sel_obj["box"] = norm_box(self.sel_obj["box"])
+                for o in self.selected_objs():
+                    if "box" in o:
+                        o["box"] = norm_box(o["box"])
                 self.changed()
             self.render()
         elif m == "pan":
@@ -5295,7 +5530,13 @@ class App:
     # ---------------------------------------------------------------- board mouse
     def _board_press(self, e):
         it = self._cell_at(e.x, e.y)
+        if it and e.state & 0x5:              # Ctrl / Shift + click: select several, like in the history
+            self._card_click(e, it)
+            self.render()
+            return
         if it:
+            if len(self.picked_items()) > 1:
+                self.select_items([it])
             self.sel = it
             self._load_notes()
             self._update_cards()
@@ -5356,6 +5597,11 @@ class App:
                 self.redo()
             elif ks == "d":
                 self.dup_obj()
+            elif ks == "a":
+                if self.view_n() == 1:
+                    self.select_all_objs()
+                else:
+                    self.select_items(list(self.items))
             elif ks == "p" and self.feat["feat_pin"].get():
                 self.pin_current()
             elif ks == "t" and self.feat["feat_ocr"].get():
@@ -5372,7 +5618,10 @@ class App:
                 self.zoom_at(1 / 1.25)
             return "break"
         if ks == "escape":
-            if self.building:
+            if len(self.picked_items()) > 1 and not self.sel_obj:
+                self.select_items([self.sel])
+                self.set_status(tr("Ready  ·  Ctrl+Alt+S to capture from anywhere"))
+            elif self.building:
                 self.cancel_building()
             elif self.sel_obj:
                 self.select_obj(None)
@@ -5386,19 +5635,24 @@ class App:
         if ks == "delete":
             if self.sel_obj and self.view_n() == 1:
                 self.delete_obj()
+            elif len(self.picked_items()) > 1:
+                self.delete_many(self.picked_items())
             else:
                 self.delete_item()
             return "break"
         if ks in ("left", "right", "up", "down"):
-            if self.sel_obj and self.view_n() == 1:
+            group = self.selected_objs() if self.view_n() == 1 else []
+            if group:
                 step = (10 if shift else 1) / self.s
                 dx = {"left": -step, "right": step}.get(ks, 0)
                 dy = {"up": -step, "down": step}.get(ks, 0)
+                gid = ",".join(o["id"] for o in group)
                 lid, lkey, lt = self._last_prop
-                if not (lid == self.sel_obj["id"] and lkey == "nudge" and time.time() - lt < 1.5):
+                if not (lid == gid and lkey == "nudge" and time.time() - lt < 1.5):
                     self.push_undo()
-                self._last_prop = (self.sel_obj["id"], "nudge", time.time())
-                move_obj(self.sel_obj, dx, dy)
+                self._last_prop = (gid, "nudge", time.time())
+                for o in group:
+                    move_obj(o, dx, dy)
                 self.changed()
             elif ks in ("up", "down") and self.sel in self.items:
                 i = self.items.index(self.sel) + (-1 if ks == "up" else 1)
@@ -5587,8 +5841,9 @@ class App:
         if self.sel:
             self._save_img(self.out_image(self.sel), f"Capture_{self.sel['num']}", [self.sel])
 
-    def save_all_png(self):
-        if not self.items:
+    def save_all_png(self, items=None):
+        items = list(self.items) if items is None else [it for it in self.items if it in items]
+        if not items:
             return
         d = filedialog.askdirectory(parent=self.root, title=tr("Folder for all screenshots"),
                                     initialdir=self.st.get("last_dir") or DEFAULT_SAVE_DIR)
@@ -5596,7 +5851,7 @@ class App:
             return
         done = []
         try:
-            for it in reversed(self.items):
+            for it in reversed(items):
                 save_image(self.out_image(it), os.path.join(d, f"Capture_{it['num']:03d}_{it['time']:%Y%m%d_%H%M%S}.png"))
                 done.append(it)
         except Exception as ex:
@@ -5604,8 +5859,8 @@ class App:
             messagebox.showerror(tr("Save failed"), str(ex), parent=self.root)
             return
         self.st["last_dir"] = d
-        self._mark_saved(self.items)
-        self.set_status(tr("{n} screenshots saved to {d}", n=len(self.items), d=d))
+        self._mark_saved(items)
+        self.set_status(tr("{n} screenshots saved to {d}", n=len(items), d=d))
         self.flash_msg(tr("✓ Saved"))
 
     def export_batch(self, what, fmt, folder, prefix):
@@ -5636,8 +5891,11 @@ class App:
         self._mark_saved(items)
         return out
 
-    def save_all_pdf(self, board_only=False):
-        items = self.board_items() if board_only else list(reversed(self.items))
+    def save_all_pdf(self, board_only=False, items=None):
+        if items is not None:
+            items = [it for it in reversed(self.items) if it in items]
+        else:
+            items = self.board_items() if board_only else list(reversed(self.items))
         if not items:
             return
         p = filedialog.asksaveasfilename(parent=self.root, defaultextension=".pdf",

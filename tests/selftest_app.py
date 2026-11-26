@@ -77,12 +77,20 @@ app.select_obj(None)
 print("3D shapes OK")
 
 class Ev:
-    def __init__(self, x, y):
-        self.x, self.y, self.state = x, y, 0
+    def __init__(self, x, y, state=0):
+        self.x, self.y, self.state = x, y, state
 
 
-def at(x, y):
-    return Ev(*app.to_canvas(x, y))
+class Key:
+    def __init__(self, keysym, state=0):
+        self.keysym, self.state = keysym, state
+
+
+def at(x, y, state=0):
+    return Ev(*app.to_canvas(x, y), state)
+
+
+SHIFT, CTRL = 0x1, 0x4
 
 
 # Paint-style tools: fill, picker, eraser, rotate / crop with undo, blank canvas
@@ -126,6 +134,109 @@ app.set_tool("select")
 app.select_item(app.items[1])
 pump(0.3)
 print("paint tools OK")
+
+# Selecting several annotations: Ctrl / Shift + click, Shift + drag a box, Ctrl+A; move / colour / delete together
+it = app.sel
+kept = (it["objs"], list(it["undo"]), list(it["redo"]))
+it["objs"], it["undo"], it["redo"] = [], [], []
+app.set_tool("select")
+app.render()
+r1 = app._new_obj("rect", box=[20, 20, 60, 60])
+r2 = app._new_obj("rect", box=[100, 20, 140, 60])
+ln = app._new_obj("line", p=[[200, 30], [260, 30]])
+it["objs"] += [r1, r2, ln]
+app.on_press(at(20, 40))
+app.on_release(at(20, 40))
+assert app.selected_objs() == [r1], app.selected_objs()
+app.on_press(at(100, 40, CTRL))
+app.on_release(at(100, 40, CTRL))
+assert app.selected_objs() == [r1, r2]
+app.on_press(at(20, 40))                       # plain press on one of them keeps both and drags both
+app.on_drag(at(30, 50))
+app.on_release(at(30, 50))
+assert r1["box"] == [30, 30, 70, 70] and r2["box"] == [110, 30, 150, 70] and ln["p"][0] == [200, 30], (r1, r2)
+app.undo()                                      # one undo step for the whole group
+r1, r2, ln = it["objs"]
+assert r1["box"] == [20, 20, 60, 60] and r2["box"] == [100, 20, 140, 60]
+assert app.selected_objs() == []
+app.on_press(at(190, 10, SHIFT))                # Shift + drag on empty space: selection box
+app.on_drag(at(270, 50, SHIFT))
+app.render()
+app.on_release(at(270, 50, SHIFT))
+assert app.selected_objs() == [ln], app.selected_objs()
+app.on_press(at(5, 5, SHIFT))
+app.on_drag(at(280, 80, SHIFT))
+app.on_release(at(280, 80, SHIFT))
+assert app.selected_objs() == [r1, r2, ln]
+app.render()
+assert "annotations" in app.sel_lbl.cget("text") or "标注" in app.sel_lbl.cget("text"), app.sel_lbl.cget("text")
+old = r1["color"]
+app.set_color("#123456")
+assert all(o["color"] == "#123456" for o in it["objs"])
+app.undo()
+assert all(o["color"] == old for o in it["objs"])
+app.on_key(Key("a", CTRL))                      # Ctrl+A
+assert len(app.selected_objs()) == 3
+app.on_key(Key("Right"))
+assert it["objs"][0]["box"][0] > 20
+app.undo()
+app.select_all_objs()
+app.dup_obj()
+assert len(it["objs"]) == 6 and len(app.selected_objs()) == 3 and app.selected_objs()[0] is it["objs"][3]
+app.on_key(Key("Delete"))
+assert len(it["objs"]) == 3
+app.select_all_objs()
+r1 = it["objs"][0]
+app.on_press(at(20, 40, SHIFT))                 # Shift + click on a selected one takes it out
+app.on_release(at(20, 40, SHIFT))
+assert len(app.selected_objs()) == 2 and r1 not in app.selected_objs()
+app.obj_back()
+assert it["objs"][2] is r1
+app.on_key(Key("Escape"))
+assert app.selected_objs() == []
+tb = app._new_table(30, 100)                    # table size through the shared property code
+it["objs"].append(tb)
+app.select_obj(tb)
+app.table_rows.set(5)
+app.on_prop("table_size")
+assert len(tb["rh"]) == 5, len(tb["rh"])
+it["objs"], it["undo"], it["redo"] = kept
+app.changed()
+print("multi-select annotations OK")
+
+# Selecting several screenshots in the history: Ctrl + click toggles, Shift + click takes a range
+items = list(app.items)                         # newest first; the capture and the blank canvas
+assert len(items) >= 2, len(items)
+app.select_item(items[0])
+app._card_click(Ev(0, 0, CTRL), items[1])
+assert app.picked_items() == items[:2] and app.sel is items[1]
+calls = []
+real_cmp, app.open_compare = app.open_compare, lambda a, b: calls.append((a, b))
+app.compare_selected()                          # two selected: compare exactly those, older one first
+app.open_compare = real_cmp
+assert calls == [(items[1], items[0])], calls
+app._card_click(Ev(0, 0, CTRL), items[0])       # Ctrl + click again takes it out
+assert app.picked_items() == [items[1]]
+app.select_item(items[0])
+app._card_click(Ev(0, 0, SHIFT), items[-1])     # Shift + click: the whole range
+assert app.picked_items() == items
+board_before = list(app.board)
+app._picked_board(app.picked_items())
+assert app.board[-len(items):] == list(reversed(items)), [b["num"] for b in app.board]
+out = tempfile.mkdtemp(prefix="mc_multi_")
+real_dir, mc.filedialog.askdirectory = mc.filedialog.askdirectory, lambda **k: out
+app.save_all_png(app.picked_items())
+mc.filedialog.askdirectory = real_dir
+assert len(os.listdir(out)) == len(items), os.listdir(out)
+app.on_key(Key("Escape"))
+assert len(app.picked_items()) == 1
+app._card_click(Ev(0, 0, CTRL), items[0])
+app._card_click(Ev(0, 0), items[1])             # plain click: only that one again
+assert app.picked_items() == [items[1]]
+app.board[:] = board_before
+app._save_board()
+pump(0.2)
+print("multi-select history OK")
 
 app.pin_current()
 pump(0.3)
