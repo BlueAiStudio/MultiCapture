@@ -20,6 +20,7 @@ The built-in Snipping Tool keeps one capture at a time. MultiCapture keeps **all
 - **Editable annotations**: pen, highlighter, line, arrow, rectangle, ellipse, numbered markers, stamps, blur and callouts. Everything stays movable and editable.
 - **Word-like text boxes**: font, size, bold / italic / underline, colour, background, border and alignment, with a ✥ grip to move them.
 - **PDF-style measurement**: distance, perimeter, area and angle, with a calibrated scale.
+- **Paint-style tools**: eraser, fill bucket, colour picker, crop, rotate / flip, resize, and a blank canvas to draw on (`Ctrl+Shift+N`). Fills and erasing stay undoable and editable.
 - **Notes panel** for each screenshot, optionally included in copies and exports.
 - **Export** to PNG / JPG / BMP / PDF, either one image or all of them (separate PNG files or one PDF).
 - **Board report** (Save menu): the board's screenshots with a title, the date, each screenshot's notes and measurements and a measurement summary table, as a PDF or Word (.docx) file. The measurement table can also be copied straight into Excel.
@@ -72,6 +73,7 @@ powershell -ExecutionPolicy Bypass -File install_shortcut.ps1
 |---|---|
 | `multicapture.py` | The application |
 | `extras.py` | Optional features: pin, OCR, scrolling capture, screen recording (GIF / MP4) |
+| `paint.py` | Paint-style tools: fill bucket, eraser on fills, rotate / flip / crop / resize with annotations |
 | `i18n.py` | Translations (fr / zh) and the user guide |
 | `themes.py` | Theme packs: loading, frames, import / export, online themes |
 | `themes/` | Built-in themes, also the catalog for "Get online themes" |
@@ -93,6 +95,7 @@ Session data is stored in `%APPDATA%\MultiCapture\`.
 - 当前视图会自动复制到剪贴板，可以直接粘贴到 Outlook、Word、Excel 或 Teams；
 - 提供可编辑的标注：画笔、箭头、框、编号、印章、马赛克、标注框，以及类似 Word 的文字框（可设字体、字号、颜色，用 ✥ 拖动）；
 - 提供类似 PDF 阅读器的测量功能：距离、周长、面积、角度，可以标定比例；
+- 类似 Windows“画图”的工具：橡皮擦、油漆桶、取色器、裁剪、旋转 / 翻转、调整大小，还可以新建空白画布来画画（`Ctrl+Shift+N`）；
 - 右侧是笔记栏，可以选择是否把笔记一起复制或导出；
 - 可导出为 PNG、JPG、BMP 或 PDF；关闭软件时会提示是否保存；
 - 「保存」菜单可把拼图一键导出为报告（PDF 或 Word），包含标题、日期、每张截图的备注和测量结果，以及测量汇总表；测量表也可以直接复制粘贴到 Excel；
@@ -121,6 +124,7 @@ L'Outil Capture d'écran ne garde qu'une capture à la fois. MultiCapture les ga
 - La vue courante est copiée automatiquement dans le presse-papiers (Outlook, Word, Excel…) ;
 - Annotations modifiables et zones de texte de type Word ;
 - Mesures façon PDF : distance, périmètre, surface, angle ;
+- Outils façon Paint : gomme, pot de peinture, pipette, rognage, rotation / miroir, redimensionnement et page blanche pour dessiner (`Ctrl+Maj+N`) ;
 - Panneau de notes, export PNG / JPG / BMP / PDF, demande d'enregistrement à la fermeture ;
 - Rapport de la planche en PDF ou Word (titre, date, notes, mesures et tableau récapitulatif), tableau des mesures copiable dans Excel ;
 - Interface en français, anglais et chinois, avec un guide intégré ;

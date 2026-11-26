@@ -4,10 +4,20 @@
 
 - **Board report** (Save menu → "Export board as a report (PDF / Word)…"): the screenshots of the current view with a title, the date, each screenshot's notes and measurements, and a measurement summary table. Saved as PDF (A4) or Word .docx. No new dependency: the .docx is written directly, so the exe and the Store package need nothing extra.
 - **Measurement table** (Save menu → "Copy board measurements as a table (Excel)"): every distance, area, perimeter, angle and scale reference on the board, copied as a table that pastes into Excel.
+- **Paint-style drawing tools** (like the Paint app in Windows):
+  - **Eraser** (`X`): rubs out pen and highlighter strokes and fills where you drag; other annotations it touches are removed. The screenshot itself is never erased. The line width sets the eraser size.
+  - **Fill bucket** (`F`): fills the area of similar colour you click, as seen with the annotations. The fill is an annotation, so it can be recoloured, moved, erased or deleted.
+  - **Colour picker** (`I`): takes the colour under the cursor and goes back to the previous tool.
+  - **Crop**, **Rotate left / right**, **Flip horizontal / vertical** and **Resize…** in the new IMAGE section of the right panel (and the right-click menu). Annotations follow the picture; `Ctrl+Z` undoes.
+  - **New blank canvas…** (`Ctrl+Shift+N`): an empty page in the history to draw on, with a size and background colour.
+  - The tool bar switches to two columns when the window is too low for one.
 - **Screen recording to MP4 with sound**: new Options → Extra features → Recording format (MP4 video by default, or GIF). MP4 is encoded while recording, so there is no length limit and memory use stays flat. MP4 can also record the microphone and/or the system sound (WASAPI loopback), each switched on separately in the same menu. MP4 uses ffmpeg from the optional `imageio-ffmpeg` package and sound uses the optional `PyAudioWPatch` package; the .exe and the Store package include both. Without them, recordings are GIF / silent. GIF recordings keep the 60 s limit.
 - **Random theme**: in 🎨 Themes, "🎲 Random theme now" switches to a random installed theme, and "Use a random theme each time the app starts" picks a different one at every start (off by default).
 - **Microsoft Store package**: `build_msix.ps1` builds an MSIX package (signed by the Store when published). In the Store version, settings and history live in the package's own data folder, so "Open folder" opens the right place. CI test-installs the package, checks that it starts, and makes the Store screenshots.
 - **Code signing** of `MultiCapture.exe` in CI with Azure Artifact Signing, switched on by adding the repository secrets (see `docs/CODE_SIGNING.md`).
+- **History limit** (Options › History limit): keep only the last 20 / 50 / 100 / 200 / 500 screenshots, or unlimited. The oldest are removed automatically; lowering the limit asks before deleting.
+- **Temporary board**: with "Keep history between launches" switched off, screenshots are still written to the session folder so they can leave memory like the others, and are deleted on close (leftovers from a crash are removed at the next start). Long sessions no longer keep every image in RAM.
+- History cards keep their thumbnail, so adding a capture no longer reloads every old screenshot from disk.
 - winget manifests (`packaging/winget`), Store listing texts (`docs/STORE.md`) and a privacy policy (`PRIVACY.md`).
 
 ## 1.4.0

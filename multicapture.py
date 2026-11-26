@@ -38,6 +38,7 @@ from tkinter import colorchooser, filedialog, messagebox, simpledialog, ttk
 from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageGrab, ImageTk
 
 import extras
+import paint
 import report
 import themes
 from i18n import LANG, LANGS, detect_lang, guide_text, shortcuts_text, tr
@@ -55,6 +56,7 @@ APP_NAME = "MultiCapture"
 VERSION = "1.4.0"
 # Full-size screenshots kept in RAM at once; older ones are reloaded from the session folder on demand.
 MAX_LOADED = 16
+HISTORY_LIMITS = (20, 50, 100, 200, 500, 0)   # 0 = unlimited
 
 # --------------------------------------------------------------------------- DPI
 try:
@@ -193,6 +195,11 @@ TOOLS = [
     ("stamp", "Stamp / symbol  (S)", "s"),
     ("mosaic", "Blur / pixelate area  (B)", "b"),
     None,
+    ("eraser", "Eraser  (X)  - rubs out annotations, never the screenshot itself", "x"),
+    ("fill", "Fill with colour  (F)  - fills an area of the same colour, like Paint", "f"),
+    ("picker", "Colour picker  (I)  - takes a colour from the picture", "i"),
+    ("crop", "Crop  - drag the part of the picture to keep", ""),
+    None,
     ("dist", "Measure distance  (D)", "d"),
     ("perim", "Measure perimeter / polyline  (M)\nclick points, double-click or Enter to finish", "m"),
     ("area", "Measure area (polygon)  (G)\nclick points, double-click or Enter to finish", "g"),
@@ -203,7 +210,8 @@ TOOL_NAMES = {"select": "Select", "pen": "Pen", "highlight": "Highlighter", "lin
               "arrow": "Arrow", "rect": "Rectangle", "ellipse": "Ellipse", "text": "Text box",
               "callout": "Callout", "marker": "Numbered marker", "stamp": "Stamp",
               "mosaic": "Blur", "dist": "Distance", "perim": "Perimeter", "area": "Area",
-              "angle": "Angle", "calib": "Scale reference"}
+              "angle": "Angle", "calib": "Scale reference", "eraser": "Eraser", "fill": "Fill",
+              "picker": "Colour picker", "crop": "Crop"}
 
 DEFAULT_SETTINGS = {
     "autocopy": True, "include_notes": True, "autosave": False, "save_dir": DEFAULT_SAVE_DIR,
@@ -799,7 +807,11 @@ def d_angle(img, o, s, tf, sc):
                    f"{angle_of(o['pts']):.1f}°", o["color"], o.get("fs", 14) * s)
 
 
-DRAWERS = {"pen": d_pen, "highlight": d_highlight, "line": d_line, "arrow": d_arrow,
+def d_fill(img, o, s, tf, sc):
+    paint.draw_fill(img, o, s, tf)
+
+
+DRAWERS = {"fill": d_fill, "pen": d_pen, "highlight": d_highlight, "line": d_line, "arrow": d_arrow,
            "rect": d_shape, "ellipse": d_shape, "mosaic": d_mosaic, "text": draw_text_obj,
            "marker": d_marker, "stamp": d_stamp, "dist": d_dist, "calib": d_dist,
            "perim": d_perim, "area": d_area, "angle": d_angle}
@@ -821,12 +833,17 @@ def obj_bbox(o):
     if t in ("marker", "stamp"):
         r = o["size"] * (0.85 if t == "marker" else 0.9)
         return [o["x"] - r, o["y"] - r, o["x"] + r, o["y"] + r]
+    if t == "fill":
+        m = paint.mask_from_str(o["mask"])
+        return [o["x"], o["y"], o["x"] + m.width, o["y"] + m.height]
     return [0, 0, 0, 0]
 
 
 def hit_obj(o, x, y, tol):
     t = o["type"]
     w = o.get("width", 2)
+    if t == "fill":
+        return paint.fill_hit(o, x, y)
     if t in ("pen", "perim", "angle"):
         return poly_dist(o["pts"], x, y) <= tol + w / 2
     if t == "highlight":
@@ -1085,6 +1102,24 @@ def tool_icon_image(key, color="#374151", accent="#2563EB"):
         d.rounded_rectangle((6, 32, 90, 64), radius=6, outline=c, width=6)
         for i, x in enumerate(range(18, 86, 10)):
             d.line((x, 34, x, 46 if i % 2 else 52), fill=c, width=4)
+    elif key == "eraser":
+        d.polygon([(40, 18), (86, 46), (58, 86), (12, 58)], outline=c, width=6)
+        d.polygon([(40, 18), (86, 46), (68, 72), (22, 44)], fill=acc)
+        d.line((10, 88, 86, 88), fill=c, width=5)
+    elif key == "fill":
+        d.polygon([(44, 12), (80, 46), (48, 78), (14, 44)], outline=c, width=6)
+        d.polygon([(14, 44), (80, 46), (48, 78)], fill=acc)
+        d.line((44, 12, 30, 4), fill=c, width=6)
+        d.ellipse((74, 58, 92, 84), fill=acc)
+    elif key == "picker":
+        d.line((22, 74, 62, 34), fill=c, width=12)
+        d.polygon([(10, 88), (14, 70), (28, 84)], fill=acc)
+        d.rounded_rectangle((56, 8, 90, 42), radius=10, fill=c)
+        d.line((48, 26, 72, 50), fill=c, width=10)
+    elif key == "crop":
+        d.line((28, 8, 28, 68, 88, 68), fill=c, width=8)
+        d.line((8, 28, 68, 28, 68, 88), fill=c, width=8)
+        d.line((76, 20, 20, 76), fill=acc, width=5)
     return im
 
 
@@ -1268,6 +1303,68 @@ class ScaleDialog(tk.Toplevel):
             messagebox.showwarning(tr("Scale"), tr("Please enter a positive number."), parent=self)
             return
         self.result = (v, self.unit.get(), self.all.get())
+        self.destroy()
+
+
+class BlankDialog(tk.Toplevel):
+    """Size and background colour of a new blank canvas."""
+
+    def __init__(self, master, w, h, bg):
+        super().__init__(master)
+        self.title(tr("New blank canvas"))
+        self.configure(bg=PANEL, padx=18, pady=14)
+        self.resizable(False, False)
+        self.transient(master)
+        self.result = None
+        self.bg = bg
+        self.w, self.h = tk.StringVar(value=str(w)), tk.StringVar(value=str(h))
+        tk.Label(self, text=tr("Width"), bg=PANEL, fg=TEXT, font=UI).grid(row=0, column=0, sticky="w")
+        e = ttk.Spinbox(self, from_=16, to=8000, increment=10, textvariable=self.w, width=7)
+        e.grid(row=0, column=1, padx=6, pady=4, sticky="w")
+        tk.Label(self, text=tr("Height"), bg=PANEL, fg=TEXT, font=UI).grid(row=1, column=0, sticky="w")
+        ttk.Spinbox(self, from_=16, to=8000, increment=10, textvariable=self.h, width=7).grid(
+            row=1, column=1, padx=6, pady=4, sticky="w")
+        tk.Label(self, text="px", bg=PANEL, fg=MUTED, font=UI).grid(row=0, column=2, rowspan=2, sticky="w")
+        sizes = tk.Frame(self, bg=PANEL)
+        sizes.grid(row=2, column=0, columnspan=3, sticky="w", pady=(4, 0))
+        for sw, sh in ((800, 600), (1280, 720), (1920, 1080), (1240, 1754)):
+            FlatButton(sizes, f"{sw}×{sh}", lambda a=sw, b=sh: (self.w.set(str(a)), self.h.set(str(b))),
+                       padx=5, pady=1, font=UI_S, bg=BTN, hover=BTN_H).pack(side="left", padx=(0, 3))
+        cr = tk.Frame(self, bg=PANEL)
+        cr.grid(row=3, column=0, columnspan=3, sticky="w", pady=(10, 0))
+        tk.Label(cr, text=tr("Background"), bg=PANEL, fg=TEXT, font=UI).pack(side="left")
+        self.sw = tk.Label(cr, bg=bg, width=3, relief="solid", bd=1, cursor="hand2")
+        self.sw.pack(side="left", padx=6)
+        self.sw.bind("<Button-1>", lambda ev: self._pick())
+        bf = tk.Frame(self, bg=PANEL)
+        bf.grid(row=4, column=0, columnspan=3, sticky="e", pady=(12, 0))
+        ttk.Button(bf, text=tr("Cancel"), command=self.destroy).pack(side="right")
+        ttk.Button(bf, text=tr("OK"), command=self.ok).pack(side="right", padx=6)
+        self.bind("<Return>", lambda ev: self.ok())
+        self.bind("<Escape>", lambda ev: self.destroy())
+        e.focus_set()
+        self.update_idletasks()
+        x = master.winfo_rootx() + master.winfo_width() // 2 - self.winfo_width() // 2
+        y = master.winfo_rooty() + master.winfo_height() // 3
+        self.geometry(f"+{x}+{y}")
+        self.grab_set()
+        self.wait_window()
+
+    def _pick(self):
+        c = colorchooser.askcolor(color=self.bg, title=tr("Background"), parent=self)[1]
+        if c:
+            self.bg = c.upper()
+            self.sw.configure(bg=self.bg)
+
+    def ok(self):
+        try:
+            w, h = int(float(self.w.get())), int(float(self.h.get()))
+            if not (16 <= w <= 8000 and 16 <= h <= 8000):
+                raise ValueError
+        except ValueError:
+            messagebox.showwarning(tr("New blank canvas"), tr("Width and height must be 16 to 8000 px."), parent=self)
+            return
+        self.result = (w, h, self.bg)
         self.destroy()
 
 
@@ -1785,6 +1882,7 @@ class App:
         self.sel_obj = None      # selected annotation
         self.drag = None
         self.building = None     # polyline / polygon / angle in progress
+        self._tool_before = "select"   # the colour picker goes back to this tool
         self.editing = None      # text object being edited
         self.edit_widget = None
         self.edit_win = None
@@ -1996,10 +2094,13 @@ class App:
         tk.Frame(body, bg=BORDER, width=1).pack(side="left", fill="y")
         self.tool_btns = {}
         self._icons = {}
+        self._strip = strip
+        self._strip_items = []
+        self._strip_cols = 0
         ipx = int(22 * self.k)
         for t in TOOLS:
             if t is None:
-                tk.Frame(strip, bg=BORDER, height=1).pack(fill="x", padx=8, pady=4)
+                self._strip_items.append(tk.Frame(strip, bg=BORDER, height=1))
                 continue
             key, tip, _ = t
             self._icons[key] = make_tool_icon(key, ipx)
@@ -2008,9 +2109,11 @@ class App:
                                offrelief="flat", bd=0, width=int(36 * self.k), height=int(32 * self.k),
                                highlightthickness=0,
                                cursor="hand2", command=self._tool_changed, takefocus=0)
-            b.pack(padx=5, pady=1)
             Tooltip(b, tr(tip))
             self.tool_btns[key] = b
+            self._strip_items.append(b)
+        self._layout_tools(1)
+        body.bind("<Configure>", lambda e: self._fit_tools(e.height))
 
         # centre: canvas
         centre = tk.Frame(body, bg=CANVAS_BG)
@@ -2024,6 +2127,7 @@ class App:
         c.bind("<ButtonRelease-1>", self.on_release)
         c.bind("<Double-Button-1>", self.on_double)
         c.bind("<Motion>", self.on_motion)
+        c.bind("<Leave>", lambda e: c.delete("ecur"))
         c.bind("<ButtonPress-3>", self.on_right)
         c.bind("<ButtonPress-2>", lambda e: setattr(self, "_pan", (e.x, e.y)))
         c.bind("<B2-Motion>", self._pan_move)
@@ -2055,6 +2159,30 @@ class App:
         self.root.bind("<Key>", self.on_key)
         self._refresh_view_btns()
         self._build_extras()
+
+    def _layout_tools(self, cols):
+        """Tool buttons in one column, or two when the window is too low for one."""
+        if cols == self._strip_cols:
+            return
+        self._strip_cols = cols
+        r = c = 0
+        for w in self._strip_items:
+            w.grid_forget()
+            if isinstance(w, tk.Radiobutton):
+                w.grid(row=r, column=c, padx=(5 if c == 0 else 0, 5 if c == cols - 1 else 0), pady=1)
+                c += 1
+                if c == cols:
+                    r, c = r + 1, 0
+            else:
+                if c:
+                    r, c = r + 1, 0
+                w.grid(row=r, column=0, columnspan=cols, sticky="ew", padx=8, pady=4)
+                r += 1
+
+    def _fit_tools(self, height):
+        n_btn = sum(isinstance(w, tk.Radiobutton) for w in self._strip_items)
+        need = n_btn * (int(32 * self.k) + 2) + (len(self._strip_items) - n_btn) * 9
+        self._layout_tools(1 if need <= height else 2)
 
     def _hbtn(self, key, glyph, text, size=18):
         """Header button contents: the theme's icon when it has one, else the usual symbol."""
@@ -2206,6 +2334,25 @@ class App:
         ds = ttk.Spinbox(mr, from_=0, to=6, textvariable=self.decimals, width=3, command=self._dec_changed)
         ds.pack(side="left")
         ds.bind("<Return>", lambda e: self._dec_changed())
+
+        # image (Paint-like: rotate, flip, crop, resize, blank canvas)
+        self.sec_image = self._section(P, "IMAGE")
+        ir = tk.Frame(self.sec_image, bg=PANEL)
+        ir.pack(fill="x")
+        for i, (txt, cmd, tip) in enumerate((
+                ("↺ " + tr("Rotate left"), lambda: self.image_op("rot_ccw"), tr("Turn 90° to the left")),
+                ("↻ " + tr("Rotate right"), lambda: self.image_op("rot_cw"), tr("Turn 90° to the right")),
+                ("⇄ " + tr("Flip horizontal"), lambda: self.image_op("flip_h"), tr("Mirror left ↔ right")),
+                ("⇅ " + tr("Flip vertical"), lambda: self.image_op("flip_v"), tr("Mirror top ↔ bottom")),
+                ("✂ " + tr("Crop"), lambda: self.set_tool("crop"), tr("Drag the part of the picture to keep")),
+                ("↔ " + tr("Resize…"), self.resize_dialog, tr("Make the picture bigger or smaller")))):
+            FlatButton(ir, txt, cmd, padx=6, pady=2, font=UI_S, bg=BTN, hover=BTN_H, tip=tip,
+                       anchor="w").grid(row=i // 2, column=i % 2, padx=(0, 3), pady=(0, 3), sticky="ew")
+        ir.columnconfigure(0, weight=1)
+        ir.columnconfigure(1, weight=1)
+        FlatButton(self.sec_image, "▢ " + tr("New blank canvas…"), self.new_blank, padx=6, pady=2, font=UI_S,
+                   bg=BTN, hover=BTN_H, tip=tr("An empty page to draw on, like Paint  (Ctrl+Shift+N)"),
+                   anchor="w").pack(fill="x", pady=(0, 3))
 
         # notes
         tk.Frame(wrap, bg=BORDER, height=1).pack(fill="x", pady=(12, 0))
@@ -2407,31 +2554,59 @@ class App:
             return
         if box:
             self.last_region = box
-        it = self.new_item(img.convert("RGB"))
-        self.items.insert(0, it)
-        self.board.append(it)
-        self._persist_new(it)
-        self._prune()
-        self._rebuild_list()
-        self.select_item(it)
+        it = self._add_item(img.convert("RGB"))
         self.set_status(tr("Screenshot #{n} added  ({w} × {h})", n=it["num"], w=img.width, h=img.height))
         if self.autocopy.get():
             self.copy_view(auto=True)
         if self.autosave.get():
             self._export_auto(it)
 
+    def _add_item(self, img):
+        it = self.new_item(img)
+        self.items.insert(0, it)
+        self.board.append(it)
+        self._persist_new(it)
+        self._prune()
+        self._rebuild_list()
+        self.select_item(it)
+        return it
+
+    def _history_limit(self):
+        try:
+            return max(0, int(self.st.get("history_limit", 200)))
+        except (TypeError, ValueError):
+            return 200
+
     def _prune(self):
-        lim = int(self.st.get("history_limit", 200))
+        """Drop the oldest screenshots beyond the history limit (0 = unlimited)."""
+        lim = self._history_limit()
+        if not lim:
+            return
         while len(self.items) > lim:
             old = self.items.pop()
+            self._forget_jobs(old)
             if old in self.board:
                 self.board.remove(old)
             self._delete_files(old)
+            if old is self.sel:
+                self.sel, self.sel_obj, self.editing = None, None, None
+        self._save_board()
+
+    def set_history_limit(self, lim):
+        """Options menu: change the history limit, deleting the oldest extras after one confirmation."""
+        extra = self.items[lim:] if lim else []
+        if extra:
+            self.delete_many(extra)
+            if any(it in self.items for it in extra):   # cancelled
+                self._limit_var.set(self._history_limit())
+                return
+        self.st["history_limit"] = lim
+        save_settings(self.st)
 
     # ===================================================================== persistence
     def _persist_new(self, it):
-        if not self.keep_history.get():
-            return
+        # The PNG is always written, so that the full image can be dropped from memory and reloaded
+        # on demand (see img_of / _evict). Without "Keep history" it is deleted again on close.
         os.makedirs(SESSION_DIR, exist_ok=True)
         img = it["orig"]
         p = os.path.join(SESSION_DIR, it["id"] + ".png")
@@ -2485,8 +2660,24 @@ class App:
             except OSError:
                 pass
 
+    def _purge_session_dir(self):
+        """Temporary board: remove files left in the session folder (e.g. after a crash)."""
+        try:
+            for fn in os.listdir(SESSION_DIR):
+                if fn.endswith((".png", ".json", ".tmp")):
+                    try:
+                        os.remove(os.path.join(SESSION_DIR, fn))
+                    except OSError:
+                        pass
+        except OSError:
+            pass
+
     def _load_history(self):
-        if not self.keep_history.get() or not os.path.isdir(SESSION_DIR):
+        if not self.keep_history.get():
+            self._purge_session_dir()
+            self.render()
+            return
+        if not os.path.isdir(SESSION_DIR):
             self.render()
             return
         metas = []
@@ -2533,6 +2724,7 @@ class App:
             pass
         self.board = [byid[i] for i in order if i in byid]
         self.board += [it for it in reversed(self.items) if it not in self.board]
+        self._prune()
         if self.items:
             self.st["next_num"] = max(self.st["next_num"], max(i["num"] for i in self.items) + 1)
         self._rebuild_list()
@@ -2566,13 +2758,14 @@ class App:
     def _thumb(self, it):
         t = self.final(it).copy()
         t.thumbnail((int(180 * self.k), int(112 * self.k)), Image.LANCZOS)
-        it["_thumb"] = ImageTk.PhotoImage(t)
+        it["_thumb"] = ImageTk.PhotoImage(t)   # cached: rebuilding the list must not reload every image
+        it["_thumb_stale"] = False
         return it["_thumb"]
 
     def _make_card(self, it):
         fr = tk.Frame(self.list_frame, bg=PANEL, highlightthickness=2, highlightbackground=PANEL, padx=4, pady=4)
         fr.pack(fill="x", padx=6, pady=2)
-        img = tk.Label(fr, image=self._thumb(it), bg=PANEL)
+        img = tk.Label(fr, image=self._thumb(it) if it.get("_thumb") is None or it.get("_thumb_stale") else it["_thumb"], bg=PANEL)
         img.pack()
         cap = tk.Label(fr, bg=PANEL, font=UI_S, fg=MUTED, anchor="w")
         cap.pack(fill="x")
@@ -2794,7 +2987,9 @@ class App:
         c.create_text(x, y + 4, text=tr("Every capture is kept in the history — nothing is overwritten."), font=UI, fill=MUTED, tags="content")
         c.create_text(x, y + 40, text=tr("The current view (single or grid) is copied automatically —\njust paste it into Outlook, Word or Excel."),
                       font=UI, fill=MUTED, justify="center", tags="content")
-        c.create_text(x, y + 86, text=tr("Press F1 for the user guide"), font=UI_B, fill=ACCENT, tags="content")
+        c.create_text(x, y + 72, text=tr("Ctrl+Shift+N opens a blank canvas to draw on."), font=UI, fill=MUTED,
+                      tags="content")
+        c.create_text(x, y + 100, text=tr("Press F1 for the user guide"), font=UI_B, fill=ACCENT, tags="content")
 
     # ---------------------------------------------------------------- single
     def _draw_single(self, cw, ch):
@@ -2831,7 +3026,16 @@ class App:
         c.create_rectangle(px + 3, py + 3, px + img.width + 3, py + img.height + 3, fill=SHADOW, outline="",
                            tags="content")
         c.create_image(px, py, anchor="nw", image=self._photo, tags="content")
+        if self.drag and self.drag.get("mode") == "crop":
+            x0, y0, x1, y1 = norm_box(self.drag["box"])
+            a, b = self.to_canvas(x0, y0)
+            cc, dd = self.to_canvas(x1, y1)
+            c.create_rectangle(a, b, cc, dd, outline="white", width=3, tags="content")
+            c.create_rectangle(a, b, cc, dd, outline=ACCENT, width=1, dash=(5, 3), tags="content")
+            c.create_text(a + 4, b - 4, anchor="sw", text=f"{round(x1 - x0)} × {round(y1 - y0)} px", fill=ACCENT,
+                          font=UI_B, tags="content")
         self._draw_selection()
+        c.tag_raise("ecur")
         if self.editing and self.edit_win:
             self._place_editor()
             c.tag_raise("editor")
@@ -2973,7 +3177,10 @@ class App:
     def _tool_changed(self):
         self.commit_edit()
         self.cancel_building()
+        self.canvas.delete("ecur")
         t = self.tool.get()
+        if t != "picker":
+            self._tool_before = t
         if t != "select" and self.view_n() != 1:
             self.set_view("Single")
         if t != "select":
@@ -2989,6 +3196,10 @@ class App:
             "calib": "  ·  draw a line over a known length",
             "callout": "  ·  press on the target, drag to where the text goes",
             "text": "  ·  click to add text, click an existing text to edit it",
+            "eraser": "  ·  drag over annotations to rub them out (line width = eraser size)",
+            "fill": "  ·  click an area to fill it with the current colour",
+            "picker": "  ·  click the picture to take its colour",
+            "crop": "  ·  drag the part to keep · Ctrl+Z undoes",
         }.get(t, "")))
         self.canvas.focus_set()
 
@@ -3002,18 +3213,22 @@ class App:
                                    else tr("New: {name}", name=tr(TOOL_NAMES.get(kind, kind))))
         show = {
             "sec_sel": True,
-            "sec_color": kind != "mosaic",
+            "sec_color": kind not in ("mosaic", "eraser", "crop"),
             "sec_stroke": kind in ("pen", "highlight", "line", "arrow", "rect", "ellipse", "mosaic", "dist", "calib",
-                                   "perim", "area", "angle", "callout") or (kind == "text" and o and o.get("leader")),
+                                   "perim", "area", "angle", "callout", "eraser")
+            or (kind == "text" and o and o.get("leader")),
             "sec_fill": kind in ("rect", "ellipse", "area"),
             "sec_text": kind in ("text", "callout"),
             "sec_size": kind in ("marker", "stamp", "dist", "calib", "perim", "area", "angle"),
             "sec_stamp": kind == "stamp",
             "sec_measure": kind in ("dist", "calib", "perim", "area", "angle") or kind == "select",
+            "sec_image": kind in ("select", "crop") and not o,
         }
-        for name in ("sec_sel", "sec_color", "sec_stroke", "sec_fill", "sec_text", "sec_size", "sec_stamp", "sec_measure"):
+        names = ("sec_sel", "sec_color", "sec_stroke", "sec_fill", "sec_text", "sec_size", "sec_stamp", "sec_measure",
+                 "sec_image")
+        for name in names:
             getattr(self, name).pack_forget()
-        for name in ("sec_sel", "sec_color", "sec_stroke", "sec_fill", "sec_text", "sec_size", "sec_stamp", "sec_measure"):
+        for name in names:
             if show[name]:
                 getattr(self, name).pack(fill="x")
         self._refresh_swatches()
@@ -3102,6 +3317,7 @@ class App:
             if any(o["type"] in ("dist", "perim", "area") for o in it["objs"]):
                 it["_final"] = None
                 it["_gkey"] = None
+                it["_thumb_stale"] = True
         self.render()
 
     def _fs(self):
@@ -3135,7 +3351,7 @@ class App:
         elif key == "width":
             if t == "mosaic":
                 o["block"] = max(4, self._w() * 3)
-            elif t not in ("marker", "stamp"):
+            elif t not in ("marker", "stamp", "fill"):
                 o["width"] = self._w()
         elif key == "fill" and t in ("rect", "ellipse"):
             o["fill"] = self.fill_color if self.fill_on.get() else None
@@ -3238,26 +3454,34 @@ class App:
         if self.sel and self.sel["undo"]:
             self.sel["undo"].pop()
 
+    def _restore(self, it, src, dst):
+        """Undo / redo step. Entries are the annotations as JSON, or (JSON, image, scale) after
+        an operation that changed the picture itself (rotate, crop, resize ...)."""
+        self.commit_edit()
+        e = src.pop()
+        if isinstance(e, tuple):
+            dst.append((json.dumps(it["objs"]), self.img_of(it), it.get("scale")))
+            objs, img, it["scale"] = e
+            self._set_image(it, img)
+        else:
+            dst.append(json.dumps(it["objs"]))
+            objs = e
+        it["objs"] = json.loads(objs)
+        self.sel_obj = None
+        self.changed()
+
     def undo(self):
         it = self.sel
         if not it or not it["undo"]:
             return
-        self.commit_edit()
-        it["redo"].append(json.dumps(it["objs"]))
-        it["objs"] = json.loads(it["undo"].pop())
-        self.sel_obj = None
-        self.changed()
+        self._restore(it, it["undo"], it["redo"])
         self.set_status(tr("Undo"))
 
     def redo(self):
         it = self.sel
         if not it or not it["redo"]:
             return
-        self.commit_edit()
-        it["undo"].append(json.dumps(it["objs"]))
-        it["objs"] = json.loads(it["redo"].pop())
-        self.sel_obj = None
-        self.changed()
+        self._restore(it, it["redo"], it["undo"])
         self.set_status(tr("Redo"))
 
     def changed(self):
@@ -3340,6 +3564,180 @@ class App:
     def _next_marker(self):
         ns = [o["n"] for o in self.sel["objs"] if o["type"] == "marker"]
         return (max(ns) + 1) if ns else 1
+
+    # ===================================================================== Paint-like tools
+    def _eraser_r(self):
+        return max(3.0, self._w() * 2.0)      # radius in image pixels
+
+    def _eraser_cursor(self, cx, cy):
+        c = self.canvas
+        c.delete("ecur")
+        r = self._eraser_r() * self.s
+        c.create_oval(cx - r, cy - r, cx + r, cy + r, outline="white", width=3, tags="ecur")
+        c.create_oval(cx - r, cy - r, cx + r, cy + r, outline="#111827", width=1, tags="ecur")
+
+    def _erase(self, x0, y0, x1, y1):
+        """Rub out annotations along the segment (x0, y0) - (x1, y1). Pen and highlighter strokes and
+        fills lose only the part under the eraser; other annotations are removed when touched.
+        The screenshot itself is never changed."""
+        it = self.sel
+        r = self._eraser_r()
+        n = max(1, int(math.hypot(x1 - x0, y1 - y0) / max(1.0, r / 2)))
+        pts = [(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n) for i in range(n + 1)]
+        out, changed = [], False
+        for o in it["objs"]:
+            t = o["type"]
+            if t in ("pen", "highlight"):
+                rr = r + o.get("width", 3) * (1.5 if t == "highlight" else 0.5)
+                pieces = [o["pts"]]
+                for ex, ey in pts:
+                    nxt = []
+                    for pc in pieces:
+                        cut = paint.erase_stroke(pc, ex, ey, rr)
+                        nxt.extend([pc] if cut is None else cut)
+                    pieces = nxt
+                if len(pieces) == 1 and pieces[0] is o["pts"]:
+                    out.append(o)
+                    continue
+                changed = True
+                for i, pc in enumerate(pieces):
+                    out.append(dict(o, pts=pc, id=o["id"] if i == 0 else uuid.uuid4().hex[:8]))
+            elif t == "fill":
+                if paint.erase_fill(o, pts, r):
+                    changed = True
+                    if not o["mask"]:
+                        continue
+                out.append(o)
+            elif any(hit_obj(o, ex, ey, r) for ex, ey in pts):
+                changed = True
+            else:
+                out.append(o)
+        if changed:
+            it["objs"] = out
+            it["_final"] = None
+            if self.sel_obj is not None and self.sel_obj not in out:
+                self.sel_obj = None
+            self.drag["moved"] = True
+            self.request_render()
+
+    def fill_at(self, x, y):
+        """Fill bucket: the area of similar colour around (x, y), as seen with all annotations,
+        becomes a fill annotation (it can still be recoloured, moved, erased or deleted)."""
+        it = self.sel
+        W, H = it["size"]
+        if not (0 <= x < W and 0 <= y < H):
+            return
+        self.canvas.configure(cursor="watch")
+        self.canvas.update_idletasks()
+        try:
+            res = paint.flood_mask(self.final(it), x, y)
+        finally:
+            self.canvas.configure(cursor="crosshair")
+        if not res:
+            return
+        m, left, top = res
+        o = self._new_obj("fill", x=left, y=top, mask=paint.mask_to_str(m))
+        o.pop("width", None)
+        self.push_undo()
+        it["objs"].append(o)
+        self.changed()
+
+    def pick_at(self, x, y):
+        it = self.sel
+        W, H = it["size"]
+        if not (0 <= x < W and 0 <= y < H):
+            return
+        r, g, b = self.final(it).getpixel((int(x), int(y)))[:3]
+        self.set_color(f"#{r:02X}{g:02X}{b:02X}")
+        self.set_tool(self._tool_before if self._tool_before not in ("picker", "crop") else "pen")
+        self.set_status(tr("Colour picked: {c}", c=self.color))
+
+    def _set_image(self, it, img):
+        """Replace the picture of a screenshot (after rotate, crop ...) and save it to the session folder."""
+        self._wait_saved(it)
+        it["orig"] = img
+        it["size"] = img.size
+        it["_final"] = None
+        it["_gkey"] = None
+        self._base_key = None
+        self.fit = True
+        if self.keep_history.get():
+            os.makedirs(SESSION_DIR, exist_ok=True)
+            p = os.path.join(SESSION_DIR, it["id"] + ".png")
+
+            def work():
+                try:
+                    img.save(p + ".tmp", "PNG", compress_level=3)
+                    os.replace(p + ".tmp", p)
+                    it["on_disk"] = True
+                except Exception as ex:
+                    print("png save", ex)
+            t = threading.Thread(target=work)
+            it["_save_thread"] = t
+            t.start()
+
+    def image_op(self, op, arg=None):
+        """Rotate / flip / crop / resize the selected screenshot; annotations follow. Undo with Ctrl+Z."""
+        it = self.sel
+        if not it:
+            return
+        self.commit_edit()
+        self.cancel_building()
+        img = self.img_of(it)
+
+        def text_size(o):
+            L = text_layout(o, 1)
+            return L["W"], L["H"]
+        new = paint.transform_image(img, op, arg)
+        objs = paint.transform_objs(it["objs"], op, img.size, arg, text_size)
+        it["undo"].append((json.dumps(it["objs"]), img, it.get("scale")))
+        it["redo"].clear()
+        imgs = [i for i, e in enumerate(it["undo"]) if isinstance(e, tuple)]
+        if len(imgs) > 12:      # pictures use memory: keep the last 12 picture changes undoable
+            del it["undo"][:imgs[0] + 1]
+        if op == "resize" and it.get("scale"):
+            k = math.sqrt(arg[0] / img.width * arg[1] / img.height)
+            it["scale"] = [it["scale"][0] / k, it["scale"][1]]
+        self._set_image(it, new)
+        it["objs"] = objs
+        self.sel_obj = None
+        if self.view_n() != 1:
+            self.set_view("Single")
+        self.changed()
+        self.set_status(tr("Picture changed: {w} × {h} px  ·  Ctrl+Z undoes", w=new.width, h=new.height))
+
+    def resize_dialog(self):
+        it = self.sel
+        if not it:
+            return
+        W, H = it["size"]
+        v = simpledialog.askinteger(tr("Resize"), tr("New size in % of {w} × {h} px:", w=W, h=H),
+                                    initialvalue=50, minvalue=5, maxvalue=400, parent=self.root)
+        self._refocus()
+        if not v or v == 100:
+            return
+        w, h = max(1, round(W * v / 100)), max(1, round(H * v / 100))
+        if w * h > 12000 * 12000:
+            messagebox.showwarning(tr("Resize"), tr("That picture would be too big."), parent=self.root)
+            return
+        self.image_op("resize", (w, h))
+
+    def new_blank(self):
+        """A new empty page in the history to draw on, like a new picture in Paint."""
+        self.commit_edit()
+        self.cancel_building()
+        w, h = self.st.get("blank_size") or (1280, 720)
+        dlg = BlankDialog(self.root, w, h, self.st.get("blank_bg") or "#FFFFFF")
+        self._refocus()
+        if not dlg.result:
+            return
+        w, h, bg = dlg.result
+        self.st["blank_size"], self.st["blank_bg"] = [w, h], bg
+        it = self._add_item(Image.new("RGB", (w, h), bg))
+        if self.view_n() != 1:
+            self.set_view("Single")
+        self.set_tool("pen")
+        self.set_status(tr("Blank canvas #{n} added  ({w} × {h})", n=it["num"], w=w, h=h))
 
     # ===================================================================== text editing
     def start_edit(self, o, new=False):
@@ -3497,6 +3895,8 @@ class App:
         want = {"select": "arrow", "text": "xterm"}.get(self.tool.get(), "crosshair")
         if self._on_grip(e) or (self.tool.get() == "select" and not self.building and self.hit(x, y)):
             want = "fleur"
+        if self.tool.get() == "eraser":
+            self._eraser_cursor(e.x, e.y)
         if str(self.canvas.cget("cursor")) != want:
             self.canvas.configure(cursor=want)
 
@@ -3523,6 +3923,12 @@ class App:
             m.add_command(label=tr("Copy current view"), command=self.copy_view, accelerator="Ctrl+C")
             m.add_command(label=tr("Undo"), command=self.undo, accelerator="Ctrl+Z")
             m.add_command(label=tr("Redo"), command=self.redo, accelerator="Ctrl+Y")
+            m.add_separator()
+            m.add_command(label=tr("Rotate left"), command=lambda: self.image_op("rot_ccw"))
+            m.add_command(label=tr("Rotate right"), command=lambda: self.image_op("rot_cw"))
+            m.add_command(label=tr("Flip horizontal"), command=lambda: self.image_op("flip_h"))
+            m.add_command(label=tr("Flip vertical"), command=lambda: self.image_op("flip_v"))
+            m.add_command(label=tr("Resize…"), command=self.resize_dialog)
             m.add_separator()
             m.add_command(label=tr("Remove all annotations"), command=self.clear_marks)
         m.tk_popup(e.x_root, e.y_root)
@@ -3604,6 +4010,20 @@ class App:
             self.building = self._new_obj(t, pts=[[x, y], [x, y]])
             self.request_render()
             return
+        elif t == "eraser":
+            self.push_undo()
+            self.drag = {"mode": "erase", "last": (x, y), "moved": False}
+            self._erase(x, y, x, y)
+            return
+        elif t == "fill":
+            self.fill_at(x, y)
+            return
+        elif t == "picker":
+            self.pick_at(x, y)
+            return
+        elif t == "crop":
+            self.drag = {"mode": "crop", "box": [x, y, x, y], "start": (e.x, e.y)}
+            return
         else:
             return
         self.push_undo()
@@ -3666,6 +4086,14 @@ class App:
         elif m == "callout":
             o = d["obj"]
             o["x"], o["y"] = x, y
+        elif m == "erase":
+            lx, ly = d["last"]
+            self._erase(lx, ly, x, y)
+            d["last"] = (x, y)
+            self._eraser_cursor(e.x, e.y)
+        elif m == "crop":
+            W, H = self.sel["size"]
+            d["box"][2:] = [min(max(x, 0), W), min(max(y, 0), H)]
         self.request_render()
 
     def on_release(self, e):
@@ -3678,6 +4106,21 @@ class App:
         if not d:
             return
         m = d["mode"]
+        if m == "erase":
+            if d["moved"]:
+                self.changed()
+            else:
+                self.pop_undo()
+            return
+        if m == "crop":
+            W, H = self.sel["size"]
+            x0, y0, x1, y1 = norm_box(d["box"])
+            box = (max(0, round(x0)), max(0, round(y0)), min(W, round(x1)), min(H, round(y1)))
+            self.request_render()
+            if box[2] - box[0] >= 2 and box[3] - box[1] >= 2 and box != (0, 0, W, H):
+                self.image_op("crop", box)
+                self.set_tool("select")
+            return
         if m == "grip":
             if self.editing is d["obj"]:
                 self._edit_moved = self._edit_moved or d["moved"]
@@ -3801,7 +4244,7 @@ class App:
             self.show_guide()
             return "break"
         if ctrl and ks == "n":
-            self.new_capture()
+            (self.new_blank if shift else self.new_capture)()
             return "break"
         if ctrl and ks == "s":
             (self.save_all_png if shift else self.save_view)()
@@ -4111,6 +4554,15 @@ class App:
         m.add_command(label=tr("Open auto-save folder"), command=self._open_dir)
         m.add_separator()
         m.add_checkbutton(label=tr("Keep history between launches"), variable=self.keep_history, command=self._opts_changed)
+        hm = tk.Menu(m, tearoff=0, font=UI)
+        self._limit_var = tk.IntVar(value=self._history_limit())
+        lims = list(HISTORY_LIMITS)
+        if self._history_limit() not in lims:
+            lims.insert(0, self._history_limit())
+        for n in lims:
+            hm.add_radiobutton(label=tr("Unlimited") if n == 0 else tr("Last {n} screenshots", n=n), value=n,
+                               variable=self._limit_var, command=lambda n=n: self.set_history_limit(n))
+        m.add_cascade(label=tr("History limit"), menu=hm)
         m.add_command(label=tr("Clear history…"), command=self.clear_history)
         m.add_separator()
         m.add_command(label=tr("Remove all annotations on this screenshot"), command=self.clear_marks)
@@ -4297,8 +4749,11 @@ class App:
         if self.keep_history.get():
             for it in self.items:
                 p = os.path.join(SESSION_DIR, it["id"] + ".png")
-                if not os.path.exists(p):
+                if not os.path.exists(p) and it.get("orig") is not None:
                     self._persist_new(it)
+                else:
+                    self._save_meta(it)
+            self._save_board()
 
     def _choose_dir(self):
         d = filedialog.askdirectory(parent=self.root, initialdir=self.st.get("save_dir"), title=tr("Auto-save folder"))
@@ -4379,6 +4834,7 @@ class App:
         for it in self.items:
             it["_final"] = None
             it["_gkey"] = None
+            it["_thumb_stale"] = True
         self._update_panel()
         self.render()
 
