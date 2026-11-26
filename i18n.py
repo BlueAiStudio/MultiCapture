@@ -255,6 +255,14 @@ TR = {
         ("Le thème « {name} » s'applique après redémarrage.\nRedémarrer maintenant ?", "主题「{name}」将在重启后生效。\n现在重启吗？"),
     "Theme frame skipped: {e}":
         ("Cadre du thème ignoré : {e}", "主题边框未能加上：{e}"),
+    "Random theme now":
+        ("Thème au hasard", "随机换一个主题"),
+    "Picks one of your installed themes at random":
+        ("Choisit au hasard un de vos thèmes installés", "从已安装的主题中随机挑一个"),
+    "Use a random theme each time the app starts":
+        ("Thème au hasard à chaque démarrage", "每次启动时随机使用一个主题"),
+    "Install another theme first.":
+        ("Installez d'abord un autre thème.", "请先安装其他主题。"),
     "Use this theme":
         ("Utiliser ce thème", "使用此主题"),
     "Download and install":
@@ -632,6 +640,7 @@ Options → Extra features switches each of these on or off. While a feature is 
 # 12. Themes
 - Click 🎨 Themes to change the colours, the icon of each function and the decorations (restart of the app).
 - A theme can also put a frame around the screenshots you copy and export. Turn it on or off with "Add the theme frame to copies and exports". Auto-saved PNG files never get a frame.
+- 🎲 "Random theme now" switches to one of your installed themes at random. Tick "Use a random theme each time the app starts" to get a different theme at every start.
 - "Get online themes" looks for new themes on GitHub. This is the only time the app goes online.
 - "Import .zip…" installs a theme someone sent you. "Make my own from this…" copies a theme into your themes folder so you can change its pictures and colours.
 > How to make a theme: see docs/THEMES.md on the project's GitHub page ("How to make a theme" button).
@@ -716,6 +725,7 @@ Options → Fonctions supplémentaires active ou désactive chacune d'elles. Une
 # 12. Thèmes
 - Cliquez sur 🎨 Thèmes pour changer les couleurs, l'icône de chaque fonction et les décorations (redémarrage de l'application).
 - Un thème peut aussi encadrer les captures que vous copiez et exportez. Activez ou désactivez « Ajouter le cadre du thème aux copies et exports ». Les PNG enregistrés automatiquement n'ont jamais de cadre.
+- 🎲 « Thème au hasard » passe à un de vos thèmes installés, choisi au hasard. Cochez « Thème au hasard à chaque démarrage » pour changer de thème à chaque lancement.
 - « Thèmes en ligne » cherche de nouveaux thèmes sur GitHub. C'est le seul moment où l'application se connecte.
 - « Importer un .zip… » installe un thème qu'on vous a envoyé. « Créer le mien à partir de celui-ci… » copie un thème dans votre dossier pour modifier ses images et couleurs.
 > Pour créer un thème : voir docs/THEMES.md sur la page GitHub du projet (bouton « Créer un thème »).
@@ -800,6 +810,7 @@ MultiCapture 会保留你截的每一张图。可以把多张截图放在同一�
 # 12. 主题
 - 点顶栏的「🎨 主题」可以更换界面配色、每个功能的图标和装饰图（重启软件后生效）。
 - 主题还可以给复制和导出的截图加上边框，用「复制和导出时加上主题边框」开关。自动保存的 PNG 不加边框。
+- 🎲「随机换一个主题」会从已安装的主题中随机挑一个。勾选「每次启动时随机使用一个主题」后，每次打开软件都会换一个主题。
 - 「获取在线主题」会到 GitHub 查找新主题。只有点这个按钮时软件才会联网。
 - 「导入 .zip…」安装别人发给你的主题；「以此为模板自己做…」会把主题复制到你的主题文件夹，方便你改图片和配色。
 > 如何制作主题：见项目 GitHub 页面上的 docs/THEMES.md（点「如何制作主题」按钮即可打开）。
