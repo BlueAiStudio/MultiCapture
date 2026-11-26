@@ -39,6 +39,7 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageGrab, ImageTk
 
 import extras
 import paint
+import report
 import solid3d
 import themes
 from i18n import LANG, LANGS, detect_lang, guide_text, shortcuts_text, tr
@@ -2296,8 +2297,8 @@ class App:
         self.decimals = tk.IntVar(value=st["decimals"])
         self.table_rows = tk.IntVar(value=st.get("table_rows", 3))
         self.table_cols = tk.IntVar(value=st.get("table_cols", 2))
-        self.table_header = tk.BooleanVar(value=st.get("table_header", True))
-        self.table_bg = tk.BooleanVar(value=st.get("table_bg", True))
+        self.tbl_header_var = tk.BooleanVar(value=st.get("table_header", True))
+        self.tbl_bg_var = tk.BooleanVar(value=st.get("table_bg", True))
         self.cell_edit = None     # table cell being typed in: {"obj", "r", "c", "w" (Text), "win", "before"}
         self.sym_win = None       # symbol panel
 
@@ -2697,9 +2698,9 @@ class App:
             sp.bind("<FocusOut>", lambda e: self.on_prop("table_size"))
         tr2 = tk.Frame(self.sec_table, bg=PANEL)
         tr2.pack(fill="x", pady=(6, 0))
-        ttk.Checkbutton(tr2, text=tr("Header row"), variable=self.table_header,
+        ttk.Checkbutton(tr2, text=tr("Header row"), variable=self.tbl_header_var,
                         command=lambda: self.on_prop("table_header")).pack(side="left")
-        ttk.Checkbutton(tr2, text=tr("White background"), variable=self.table_bg,
+        ttk.Checkbutton(tr2, text=tr("White background"), variable=self.tbl_bg_var,
                         command=lambda: self.on_prop("table_bg")).pack(side="left", padx=8)
         tk.Label(self.sec_table, text=tr("Double-click a cell to type · Tab = next cell · Enter = cell below · "
                                          "Shift+Enter = new line · drag the white dots on the lines to resize "
@@ -3776,7 +3777,7 @@ class App:
                   family=self.family.get(), fsize=self._fs(), bold=self.bold.get(), italic=self.italic.get(),
                   underline=self.underline.get(), align=self.align.get(), tbg_on=self.tbg_on.get(),
                   tbg_color=self.tbg_color, border=self.border.get(), stamp=self.stamp.get(),
-                  table_header=self.table_header.get(), table_bg=self.table_bg.get())
+                  table_header=self.tbl_header_var.get(), table_bg=self.tbl_bg_var.get())
         try:
             st.update(table_rows=max(1, min(TABLE_MAX, int(self.table_rows.get()))),
                       table_cols=max(1, min(TABLE_MAX, int(self.table_cols.get()))))
@@ -3830,10 +3831,10 @@ class App:
             table_set_size(o, st["table_rows"], st["table_cols"])
             table_fit(o)
         elif t == "table" and key == "table_header":
-            o["header"] = self.table_header.get()
+            o["header"] = self.tbl_header_var.get()
             table_fit(o)
         elif t == "table" and key == "table_bg":
-            o["bg"] = "#FFFFFF" if self.table_bg.get() else None
+            o["bg"] = "#FFFFFF" if self.tbl_bg_var.get() else None
         if json.dumps(o, sort_keys=True) == before:
             return
         lid, lkey, lt = self._last_prop
@@ -3885,8 +3886,8 @@ class App:
                 self.align.set(o.get("align", "left"))
                 self.table_rows.set(len(o["rh"]))
                 self.table_cols.set(len(o["cw"]))
-                self.table_header.set(bool(o.get("header")))
-                self.table_bg.set(bool(o.get("bg")))
+                self.tbl_header_var.set(bool(o.get("header")))
+                self.tbl_bg_var.set(bool(o.get("bg")))
         finally:
             self._loading = False
 
@@ -4333,8 +4334,8 @@ class App:
         cols = max(1, min(TABLE_MAX, int(self.st.get("table_cols", 2))))
         return make_table([x, y, x, y], rows, cols, id=uuid.uuid4().hex[:8], color=self.color,
                           width=min(self._w(), 6), size=self._fs(), family=self.family.get(), bold=self.bold.get(),
-                          italic=self.italic.get(), align=self.align.get(), header=self.table_header.get(),
-                          bg="#FFFFFF" if self.table_bg.get() else None)
+                          italic=self.italic.get(), align=self.align.get(), header=self.tbl_header_var.get(),
+                          bg="#FFFFFF" if self.tbl_bg_var.get() else None)
 
     def _table_op(self, o, fn, *args):
         self.commit_edit()
@@ -5151,6 +5152,89 @@ class App:
         self.set_status(tr("PDF with {n} page(s) saved: {p}", n=len(pages), p=p))
         self.flash_msg(tr("✓ PDF saved"))
 
+    # ===================================================================== board report
+    def measure_rows(self, it):
+        """Measurements of one screenshot: [(type, value, unit, number)], in the calibrated unit."""
+        k, u = self.scale_of(it)
+        dec = 0 if u == "px" else _DEC[0]
+
+        def num(v, d=dec):
+            return f"{v:.{d}f}"
+        out, n = [], 0
+        for o in it["objs"]:
+            t = o.get("type")
+            if t not in ("dist", "calib", "perim", "area", "angle"):
+                continue
+            n += 1
+            if t == "calib":
+                out.append((tr(TOOL_NAMES[t]), f"{o['real']:g}", o["unit"], n))
+            elif t == "dist":
+                (x1, y1), (x2, y2) = o["p"]
+                out.append((tr("Distance"), num(math.hypot(x2 - x1, y2 - y1) * k), u, n))
+            elif t == "perim":
+                out.append((tr("Perimeter"), num(poly_len(o["pts"]) * k), u, n))
+            elif t == "area":
+                out.append((tr("Area"), num(poly_area(o["pts"]) * k * k), u + "²", n))
+                out.append((tr("Perimeter"), num(poly_len(o["pts"], True) * k), u, n))
+            elif t == "angle" and len(o["pts"]) >= 3:
+                out.append((tr("Angle"), num(angle_of(o["pts"]), 1), "°", n))
+        return out
+
+    def report_entries(self, items):
+        return [{"title": f"#{it['num']}  ·  {it['time']:%Y-%m-%d %H:%M}", "image": self.final(it),
+                 "notes": it["notes"], "measures": self.measure_rows(it)} for it in items]
+
+    def report_labels(self):
+        return {"created": tr("Created {d}"), "shots": tr("{n} screenshot(s)"), "notes": tr("Notes"),
+                "measures": tr("Measurements"), "summary": tr("Measurement summary"),
+                "header": self.table_header(), "page": tr("Page {i} / {n}")}
+
+    def table_header(self):
+        return (tr("Screenshot"), tr("No."), tr("Type"), tr("Value"), tr("Unit"))
+
+    def export_report(self):
+        self.commit_edit()
+        items = self.board_items()
+        if not items:
+            self.set_status(tr("The board is empty"))
+            return
+        title = simpledialog.askstring(tr("Board report"), tr("Report title:"), parent=self.root,
+                                       initialvalue=self.st.get("report_title") or tr("Screenshot report"))
+        if title is None:
+            return
+        title = title.strip() or tr("Screenshot report")
+        p = filedialog.asksaveasfilename(parent=self.root, defaultextension=".pdf",
+                                         initialdir=self.st.get("last_dir") or DEFAULT_SAVE_DIR,
+                                         initialfile=f"Report_{datetime.now():%Y%m%d_%H%M}.pdf",
+                                         filetypes=[("PDF document", "*.pdf"), ("Word document", "*.docx")])
+        if not p:
+            return
+        try:
+            entries = self.report_entries(items)
+            if p.lower().endswith(".docx"):
+                report.write_docx(p, title, entries, self.report_labels(), app=APP_NAME)
+            else:
+                report.write_pdf(p, report.pdf_pages(title, entries, self.report_labels(), font=frame_font))
+        except Exception as ex:
+            messagebox.showerror(tr("Save failed"), str(ex), parent=self.root)
+            return
+        self.st["report_title"] = title
+        self.st["last_dir"] = os.path.dirname(p)
+        self._mark_saved(items)
+        self.set_status(tr("Report saved: {p}", p=p))
+        self.flash_msg(tr("✓ Report saved"))
+
+    def copy_measure_table(self):
+        self.commit_edit()
+        rows = report.table_rows(self.report_entries(self.board_items()))
+        if not rows:
+            self.set_status(tr("No measurements on the board"))
+            return
+        self.root.clipboard_clear()
+        self.root.clipboard_append(report.table_tsv(rows, self.table_header()))
+        self.set_status(tr("Measurement table copied ({n} rows) - paste it into Excel", n=len(rows)))
+        self.flash_msg(tr("✓ Copied"))
+
     def _save_menu(self):
         m = tk.Menu(self.root, tearoff=0, font=UI)
         m.add_command(label=tr("Save current view as…"), command=self.save_view, accelerator="Ctrl+S")
@@ -5159,6 +5243,9 @@ class App:
         m.add_command(label=tr("Save all screenshots as PNG files…"), command=self.save_all_png, accelerator="Ctrl+Shift+S")
         m.add_command(label=tr("Export all screenshots to one PDF…"), command=self.save_all_pdf)
         m.add_command(label=tr("Export board screenshots to PDF…"), command=lambda: self.save_all_pdf(True))
+        m.add_separator()
+        m.add_command(label=tr("Export board as a report (PDF / Word)…"), command=self.export_report)
+        m.add_command(label=tr("Copy board measurements as a table (Excel)"), command=self.copy_measure_table)
         b = self.save_btn
         m.tk_popup(b.winfo_rootx(), b.winfo_rooty() + b.winfo_height())
 
