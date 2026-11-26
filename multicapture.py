@@ -28,6 +28,7 @@ import math
 import os
 import queue
 import random
+import re
 import sys
 import threading
 import time
@@ -376,6 +377,40 @@ def contrast(h):
 def virtual_screen():
     return (user32.GetSystemMetrics(76), user32.GetSystemMetrics(77),
             user32.GetSystemMetrics(78), user32.GetSystemMetrics(79))
+
+
+def work_area_at(x, y):
+    """(left, top, right, bottom) of the work area (screen minus taskbar) of the monitor nearest to (x, y)."""
+    class _MI(ctypes.Structure):
+        _fields_ = [("cbSize", ctypes.c_ulong), ("rcMonitor", ctypes.c_long * 4),
+                    ("rcWork", ctypes.c_long * 4), ("dwFlags", ctypes.c_ulong)]
+    try:
+        user32.MonitorFromPoint.restype = ctypes.c_void_p
+        user32.MonitorFromPoint.argtypes = [wt.POINT, ctypes.c_ulong]
+        mon = user32.MonitorFromPoint(wt.POINT(int(x), int(y)), 2)      # MONITOR_DEFAULTTONEAREST
+        mi = _MI()
+        mi.cbSize = ctypes.sizeof(_MI)
+        if mon and user32.GetMonitorInfoW(ctypes.c_void_p(mon), ctypes.byref(mi)):
+            return tuple(mi.rcWork)
+    except Exception:
+        pass
+    return None
+
+
+def fit_geometry(geom, area, min_w=0, min_h=0):
+    """Shrinks / moves a Tk "WxH+X+Y" geometry so the whole window lies inside `area`
+    (left, top, right, bottom). Leaves anything it cannot read unchanged."""
+    m = re.fullmatch(r"(\d+)x(\d+)\+(-?\d+)\+(-?\d+)", geom or "")
+    if not m or not area:
+        return geom
+    w, h, x, y = int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4))
+    l, t, r, b = area
+    w = max(min(w, r - l), min(min_w, r - l))
+    h = max(min(h, b - t - 32), min(min_h, b - t))          # room for the title bar
+    x = min(max(x, l), r - w)
+    y = min(max(y, t), b - h - 32)
+    y = max(y, t)
+    return f"{w}x{h}+{x}+{y}"
 
 
 kernel32.GlobalAlloc.restype = ctypes.c_void_p
@@ -2351,8 +2386,15 @@ class App:
         self.theme_frame = tk.BooleanVar(value=self.st.get("theme_frame", True))
         self._deco_key = None
         root.title(f"{APP_NAME}")
-        root.geometry(self.st.get("geometry", "1440x880"))
-        root.minsize(1000, 620)
+        geom = self.st.get("geometry", "1440x880+40+30")
+        m = re.fullmatch(r"\d+x\d+\+(-?\d+)\+(-?\d+)", geom or "")
+        area = work_area_at(int(m.group(1)) + 100, int(m.group(2)) + 100) if m else None
+        if area:   # a window saved on a larger / other screen would hang over the screen edge
+            geom = fit_geometry(geom, area)
+            root.minsize(min(1000, area[2] - area[0]), min(620, area[3] - area[1] - 32))
+        else:
+            root.minsize(1000, 620)
+        root.geometry(geom)
         root.configure(bg=BG)
         ico = os.path.join(RES_DIR, "multicapture.ico")
         if os.path.exists(ico):
@@ -2491,6 +2533,7 @@ class App:
         # ---------------------------------------------------------- header
         head = tk.Frame(self.root, bg=PANEL, highlightthickness=0)
         head.pack(fill="x")
+        self.head, self._head_compact, self._head_full_w = head, False, 0
         tk.Frame(self.root, bg=BORDER, height=1).pack(fill="x")
         try:
             logo = Image.open(os.path.join(RES_DIR, "multicapture.png")).convert("RGBA")
@@ -2498,7 +2541,8 @@ class App:
             tk.Label(head, image=self._logo, bg=PANEL).pack(side="left", padx=(12, 4), pady=8)
         except Exception:
             pass
-        tk.Label(head, text="MultiCapture", font=("Segoe UI Semibold", 12), bg=PANEL, fg=TEXT).pack(side="left", padx=(0, 16))
+        self._head_title = tk.Label(head, text="MultiCapture", font=("Segoe UI Semibold", 12), bg=PANEL, fg=TEXT)
+        self._head_title.pack(side="left", padx=(0, 16))
 
         self._hicons = {}
         FlatButton(head, command=self.new_capture, bg=ACCENT, fg="white", hover=ACCENT_D,
@@ -2525,7 +2569,8 @@ class App:
         self.extra_bar.pack(side="left")
 
         tk.Frame(head, bg=BORDER, width=1).pack(side="left", fill="y", padx=12, pady=10)
-        tk.Label(head, text=tr("View"), bg=PANEL, fg=MUTED, font=UI).pack(side="left", padx=(0, 6))
+        self._head_view = tk.Label(head, text=tr("View"), bg=PANEL, fg=MUTED, font=UI)
+        self._head_view.pack(side="left", padx=(0, 6))
         seg = tk.Frame(head, bg=BORDER, padx=1, pady=1)
         seg.pack(side="left")
         self.view_btns = {}
@@ -2570,7 +2615,9 @@ class App:
             flat = Image.new("RGBA", im.size, bgc)
             flat.alpha_composite(im)
             self._head_deco = ImageTk.PhotoImage(flat)
-            tk.Label(head, image=self._head_deco, bg=PANEL, bd=0).pack(side="right", padx=(0, 4))
+            self._head_deco_lbl = tk.Label(head, image=self._head_deco, bg=PANEL, bd=0)
+            self._head_deco_lbl.pack(side="right", padx=(0, 4))
+        head.bind("<Configure>", lambda e: self._fit_header())
 
 
         # ---------------------------------------------------------- body
@@ -2699,6 +2746,63 @@ class App:
         n_btn = sum(isinstance(w, tk.Radiobutton) for w in self._strip_items)
         need = n_btn * (int(32 * self.k) + 2) + (len(self._strip_items) - n_btn) * 9
         self._layout_tools(1 if need <= height else 2)
+
+    def _head_labels(self):
+        """Header widgets whose text can be shortened when the window is too narrow."""
+        ws = [w for w in self.head.winfo_children() + self.extra_bar.winfo_children() if isinstance(w, FlatButton)]
+        return ws + [self._head_title, self._head_view]
+
+    def _set_head_compact(self, on):
+        """Compact header: buttons show only their icon (the tooltip still names them)."""
+        self._head_compact = on
+        for w in self._head_labels():
+            if not hasattr(w, "_full_text"):
+                w._full_text = w.cget("text")
+            full = w._full_text
+            if not on:
+                short = full
+            elif w is self._head_title or w is self._head_view or w.cget("image"):
+                short = ""
+            else:
+                short = full.split()[0] if full.split() else full     # "💾  Save ▾" -> "💾"
+            w.configure(text=short)
+        deco = getattr(self, "_head_deco_lbl", None)
+        if deco is not None:
+            if on:
+                deco.pack_forget()
+            elif not deco.winfo_ismapped():
+                deco.pack(side="right", padx=(0, 4))
+
+    def _refit_header(self):
+        """After header buttons were added or removed: measure the full header again."""
+        if getattr(self, "head", None) is None:
+            return
+        self._set_head_compact(False)
+        self.root.after_idle(self._fit_header)
+
+    def _fit_header(self):
+        """Switches the header to icons only when the full one does not fit the window, and back."""
+        head = getattr(self, "head", None)
+        if head is None or getattr(self, "_fitting", False):
+            return
+        self._fitting = True
+        try:
+            avail = head.winfo_width()
+            if avail <= 1:
+                return
+            if not self._head_compact:
+                need = head.winfo_reqwidth()
+                if need > avail:
+                    self._head_full_w = need
+                    self._set_head_compact(True)
+            elif avail >= self._head_full_w:
+                self._set_head_compact(False)
+                head.update_idletasks()
+                if head.winfo_reqwidth() > head.winfo_width():     # still too wide after all
+                    self._head_full_w = head.winfo_reqwidth()
+                    self._set_head_compact(True)
+        finally:
+            self._fitting = False
 
     def _hbtn(self, key, glyph, text, size=18):
         """Header button contents: the theme's icon when it has one, else the usual symbol."""
@@ -6399,6 +6503,7 @@ class App:
         if self._key(self.mode_var, ALL_MODES) not in keys:
             self.mode_var.set(tr("Region"))
         self._build_extras()
+        self._refit_header()
 
     def _current_image(self):
         """What Pin / OCR act on: the selected screenshot (single view) or the board."""
