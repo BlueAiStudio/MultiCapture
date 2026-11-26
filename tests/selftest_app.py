@@ -473,6 +473,8 @@ _u = ctypes.WinDLL("user32")
 _u.SendMessageW.restype = ctypes.c_void_p
 _u.SendMessageW.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_size_t, ctypes.c_void_p]
 _hwnd = int(root.wm_frame(), 16)
+print("window icons:", _hwnd, _u.SendMessageW(_hwnd, 0x007F, 1, None), _u.SendMessageW(_hwnd, 0x007F, 0, None),
+      mc.set_window_icons(root, os.path.join(mc.RES_DIR, "multicapture.ico")))
 assert _u.SendMessageW(_hwnd, 0x007F, 1, None) and _u.SendMessageW(_hwnd, 0x007F, 0, None)   # WM_GETICON
 print("window icons OK")
 

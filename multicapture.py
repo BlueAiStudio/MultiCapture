@@ -391,13 +391,18 @@ def set_window_icons(win, ico):
         u32.SendMessageW.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_size_t, ctypes.c_void_p]
         win.update_idletasks()
         hwnd = int(win.wm_frame(), 16)
+        done = []
         for which, metric in ((1, 11), (0, 49)):      # ICON_BIG / SM_CXICON, ICON_SMALL / SM_CXSMICON
             size = u32.GetSystemMetrics(metric)
-            h = u32.LoadImageW(None, ico, 1, size, size, 0x10)      # IMAGE_ICON, LR_LOADFROMFILE
+            h = u32.LoadImageW(None, os.path.abspath(ico), 1, size, size, 0x10)   # IMAGE_ICON, LR_LOADFROMFILE
             if h:
                 u32.SendMessageW(hwnd, 0x0080, which, h)            # WM_SETICON
-    except Exception:
-        pass
+                done.append(which)
+            else:
+                done.append(("LoadImage failed", size, ctypes.get_last_error() or ctypes.GetLastError()))
+        return hwnd, done
+    except Exception as ex:
+        return None, [repr(ex)]
 
 
 def work_area_at(x, y):
@@ -2423,6 +2428,14 @@ class App:
                 root.iconbitmap(default=ico)
             except Exception:
                 pass
+            png = os.path.join(RES_DIR, "multicapture.png")
+            if os.path.exists(png):     # Tk's own way: big and small icon of the window itself
+                try:
+                    src = Image.open(png).convert("RGBA")
+                    self._win_icons = [ImageTk.PhotoImage(src.resize((n, n), Image.LANCZOS)) for n in (256, 48, 32, 16)]
+                    root.iconphoto(True, *self._win_icons)
+                except Exception:
+                    pass
             root.after_idle(lambda: set_window_icons(root, ico))
         self.k = max(1.0, root.winfo_fpixels("1i") / 96.0)
 
