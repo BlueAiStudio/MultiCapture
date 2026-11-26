@@ -33,42 +33,14 @@ if ($Source) {
     $s.Description = "MultiCapture - multi-screenshot board (from source)"
     $s.Save()
     # Same AppUserModelID as multicapture.py sets when it runs from source, so the running window
-    # and this shortcut are one taskbar entry with the MultiCapture icon.
-    Add-Type -TypeDefinition @"
-using System;
-using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.ComTypes;
-public static class McLink {
-    [ComImport, Guid("00021401-0000-0000-C000-000000000046")] class CShellLink {}
-    [ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99")]
-    interface IPropertyStore {
-        void GetCount(out uint c);
-        void GetAt(uint i, out PropKey k);
-        void GetValue(ref PropKey k, out PropVar v);
-        void SetValue(ref PropKey k, ref PropVar v);
-        void Commit();
+    # and this shortcut are one taskbar entry with the MultiCapture icon. Done with Python + ctypes
+    # (shortcut_id.py): nothing is compiled, which managed PCs may block.
+    $py = Join-Path (Split-Path -Parent $Python) "python.exe"
+    if (-not (Test-Path $py)) { $py = $Python }
+    & $py (Join-Path $src "shortcut_id.py") $lnk "MultiCapture.Dev"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "Could not set the taskbar ID: the shortcut works, but a pinned button may show twice."
     }
-    [StructLayout(LayoutKind.Sequential, Pack = 4)] struct PropKey { public Guid fmtid; public uint pid; }
-    [StructLayout(LayoutKind.Explicit)] struct PropVar {
-        [FieldOffset(0)] public ushort vt;
-        [FieldOffset(8)] public IntPtr p;
-        [FieldOffset(16)] public long pad;
-    }
-    public static void SetAppId(string lnk, string id) {
-        object link = new CShellLink();
-        ((IPersistFile)link).Load(lnk, 2);                      // STGM_READWRITE
-        PropKey key = new PropKey { fmtid = new Guid("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3"), pid = 5 };
-        PropVar v = new PropVar { vt = 31, p = Marshal.StringToCoTaskMemUni(id) };   // VT_LPWSTR
-        try {
-            IPropertyStore ps = (IPropertyStore)link;
-            ps.SetValue(ref key, ref v);
-            ps.Commit();
-            ((IPersistFile)link).Save(lnk, true);
-        } finally { Marshal.FreeCoTaskMem(v.p); }
-    }
-}
-"@
-    [McLink]::SetAppId($lnk, "MultiCapture.Dev")
     Write-Host "Shortcut : $lnk"
     Write-Host "Starts   : $Python `"$script`""
     exit 0
