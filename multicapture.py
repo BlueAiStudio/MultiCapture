@@ -58,7 +58,7 @@ REC_FPS = [5, 10, 15]
 DELAY_KEYS = ["No delay", "3 s", "5 s", "10 s"]
 
 APP_NAME = "MultiCapture"
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 # Full-size screenshots kept in RAM at once; older ones are reloaded from the session folder on demand.
 MAX_LOADED = 16
 HISTORY_LIMITS = (20, 50, 100, 200, 500, 0)   # 0 = unlimited

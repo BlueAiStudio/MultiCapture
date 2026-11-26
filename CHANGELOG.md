@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.5.0
 
+- **Undo / Redo buttons** in the top bar (`Ctrl+Z` / `Ctrl+Y`, and now also `Ctrl+Shift+Z` for redo).
 - **Drag pictures in** from Explorer or a web browser (files, or the picture of a web page). A dialog asks what to do: **merge with the other screenshots** (added to the history and the board, view switches to a grid), **open on its own** (added to the history but kept out of the board; right-click its card → "Add to board" later), or **float on top of the current screenshot**.
 - **Float on top (overlay)**: a picture placed over a screenshot behaves like an annotation: move it, resize it from a corner (proportions kept), give it a border and an opacity, 1:1 size, undo / redo, Delete. It is merged into the screenshot when copying, saving or exporting. Right-click another history card → "Float on top of the current screenshot" lays one of your own screenshots over the current one. The pictures are kept as PNG files in `session\overlays`.
 - Drag and drop uses `tkinterdnd2` (now in `requirements.txt`; PyInstaller bundles it through its own hook). Without it the app works as before, without dropping.
