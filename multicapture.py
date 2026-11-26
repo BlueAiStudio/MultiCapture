@@ -2533,7 +2533,7 @@ class App:
         # ---------------------------------------------------------- header
         head = tk.Frame(self.root, bg=PANEL, highlightthickness=0)
         head.pack(fill="x")
-        self.head, self._head_compact, self._head_full_w = head, False, 0
+        self.head, self._head_compact, self._head_full_w, self._head_seps = head, False, 0, []
         tk.Frame(self.root, bg=BORDER, height=1).pack(fill="x")
         try:
             logo = Image.open(os.path.join(RES_DIR, "multicapture.png")).convert("RGBA")
@@ -2561,6 +2561,7 @@ class App:
         Tooltip(cb, tr("Capture mode"), below=True)
         cb2 = ttk.Combobox(head, textvariable=self.delay_var, state="readonly", width=9,
                            values=[tr(k) for k in DELAY_KEYS])
+        self._delay_cb = cb2
         cb2.pack(side="left", padx=4)
         Tooltip(cb2, tr("Delay before capture"), below=True)
         for w in (cb, cb2):
@@ -2568,7 +2569,8 @@ class App:
         self.extra_bar = tk.Frame(head, bg=PANEL)     # buttons of the optional features that are switched on
         self.extra_bar.pack(side="left")
 
-        tk.Frame(head, bg=BORDER, width=1).pack(side="left", fill="y", padx=12, pady=10)
+        self._head_seps.append(tk.Frame(head, bg=BORDER, width=1))
+        self._head_seps[-1].pack(side="left", fill="y", padx=12, pady=10)
         self._head_view = tk.Label(head, text=tr("View"), bg=PANEL, fg=MUTED, font=UI)
         self._head_view.pack(side="left", padx=(0, 6))
         seg = tk.Frame(head, bg=BORDER, padx=1, pady=1)
@@ -2582,7 +2584,8 @@ class App:
             b.pack(side="left", padx=(0, 1))
             self.view_btns[name] = b
 
-        tk.Frame(head, bg=BORDER, width=1).pack(side="left", fill="y", padx=12, pady=10)
+        self._head_seps.append(tk.Frame(head, bg=BORDER, width=1))
+        self._head_seps[-1].pack(side="left", fill="y", padx=12, pady=10)
         self.undo_btn = FlatButton(head, command=self.undo, padx=6, **self._hbtn("undo", "↶", tr("Undo")),
                                    tip=tr("Undo the last change  (Ctrl+Z)"))
         self.undo_btn.pack(side="left")
@@ -2590,7 +2593,8 @@ class App:
                                    tip=tr("Redo what was undone  (Ctrl+Y / Ctrl+Shift+Z)"))
         self.redo_btn.pack(side="left")
         self._update_undo_btns()
-        tk.Frame(head, bg=BORDER, width=1).pack(side="left", fill="y", padx=12, pady=10)
+        self._head_seps.append(tk.Frame(head, bg=BORDER, width=1))
+        self._head_seps[-1].pack(side="left", fill="y", padx=12, pady=10)
         FlatButton(head, command=self.copy_view, **self._hbtn("copy", "⧉", tr("Copy")),
                    tip=tr("Copy the current view to the clipboard  (Ctrl+C)")).pack(side="left")
         self.save_btn = FlatButton(head, command=self._save_menu, **self._hbtn("save", "💾", tr("Save") + " ▾"),
@@ -2766,6 +2770,18 @@ class App:
             else:
                 short = full.split()[0] if full.split() else full     # "💾  Save ▾" -> "💾"
             w.configure(text=short)
+            if isinstance(w, FlatButton):
+                if not hasattr(w, "_full_padx"):
+                    w._full_padx = int(str(w.cget("padx")))
+                w.configure(padx=min(w._full_padx, 5) if on else w._full_padx)
+        for w in self.view_btns.values():
+            if not hasattr(w, "_full_padx"):
+                w._full_padx = int(str(w.cget("padx")))
+            w.configure(padx=5 if on else w._full_padx)
+        for sep in self._head_seps:
+            sep.pack_configure(padx=5 if on else 12)
+        self.mode_cb.configure(width=9 if on else 12)
+        self._delay_cb.configure(width=6 if on else 9)
         deco = getattr(self, "_head_deco_lbl", None)
         if deco is not None:
             if on:
