@@ -24,6 +24,7 @@ The built-in Snipping Tool keeps one capture at a time. MultiCapture keeps **all
 - **Paint-style tools**: eraser, fill bucket, colour picker, crop, rotate / flip, resize, and a blank canvas to draw on (`Ctrl+Shift+N`). Fills and erasing stay undoable and editable.
 - **Notes panel** for each screenshot, optionally included in copies and exports.
 - **Export** to PNG / JPG / BMP / PDF, either one image or all of them (separate PNG files or one PDF).
+- **Board report** (Save menu): the board's screenshots with a title, the date, each screenshot's notes and measurements and a measurement summary table, as a PDF or Word (.docx) file. The measurement table can also be copied straight into Excel.
 - **On close**, the app asks whether to save, with a choice of folder and formats.
 - **Delete menu**: delete the selected capture, the current board, or everything.
 - **Global hotkey** `Ctrl+Alt+S`. Region, full-screen and last-region modes, with an optional delay.
@@ -99,6 +100,7 @@ Session data is stored in `%APPDATA%\MultiCapture\`.
 - 类似 Windows“画图”的工具：橡皮擦、油漆桶、取色器、裁剪、旋转 / 翻转、调整大小，还可以新建空白画布来画画（`Ctrl+Shift+N`）；
 - 右侧是笔记栏，可以选择是否把笔记一起复制或导出；
 - 可导出为 PNG、JPG、BMP 或 PDF；关闭软件时会提示是否保存；
+- 「保存」菜单可把拼图一键导出为报告（PDF 或 Word），包含标题、日期、每张截图的备注和测量结果，以及测量汇总表；测量表也可以直接复制粘贴到 Excel；
 - 「删除」菜单可以删除当前截图、整个宫格或全部截图；
 - 全局快捷键 `Ctrl+Alt+S`；界面支持中文、英文、法文，并内置使用说明。
 - **主题**：可以更换界面配色、每个功能的图标和装饰图，还能给复制或导出的截图加上边框。自带「鲜花」「夜晚」「简约卡片」，点「获取在线主题」下载新主题（只有这时才联网），也可以[自己制作](docs/THEMES.md)。
@@ -127,6 +129,7 @@ L'Outil Capture d'écran ne garde qu'une capture à la fois. MultiCapture les ga
 - Même zone + comparaison : « ⟳ Même zone » (`Ctrl+Maj+R`, ou `Ctrl+Alt+R` partout) recapture exactement la même zone de l'écran ; la fenêtre Comparer montre avant / après avec un curseur ou côte à côte et encadre les différences en rouge. Zoom synchronisé des cases d'une planche ;
 - Outils façon Paint : gomme, pot de peinture, pipette, rognage, rotation / miroir, redimensionnement et page blanche pour dessiner (`Ctrl+Maj+N`) ;
 - Panneau de notes, export PNG / JPG / BMP / PDF, demande d'enregistrement à la fermeture ;
+- Rapport de la planche en PDF ou Word (titre, date, notes, mesures et tableau récapitulatif), tableau des mesures copiable dans Excel ;
 - Interface en français, anglais et chinois, avec un guide intégré ;
 - Fonctions facultatives, désactivées par défaut (Options → Fonctions supplémentaires) : épingler à l'écran, reconnaissance de texte (OCR de Windows, hors ligne), capture défilante, enregistrement d’écran en MP4 ou GIF ;
 - Thèmes : couleurs, icône de chaque fonction, décorations et cadre pour les captures copiées ou exportées ; nouveaux thèmes en ligne ou [faits par vous](docs/THEMES.md).
