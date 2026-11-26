@@ -90,6 +90,51 @@ class StitchTest(unittest.TestCase):
         self.assertEqual(st.add(window(doc, 1500, 400)), "lost")
 
 
+class ScrollEndTest(unittest.TestCase):
+    """Auto-scroll ends at the end of the page, but not when the window never scrolled at all."""
+
+    def make(self, results):
+        sc = extras.ScrollCapture.__new__(extras.ScrollCapture)
+        sc.box, sc.auto, sc.gen, sc.closed, sc.same, sc.moved = (0, 0, 100, 100), True, 0, False, 0, False
+        sc.finished = False
+        sc.labels, sc.msgs = [], []
+        feed = iter(results)
+
+        class Stitch:
+            height = 100
+
+            def add(self, img):
+                return next(feed)
+        sc.stitch = Stitch()
+        sc.bar = type("Bar", (), {"set": lambda _s, m: sc.msgs.append(m)})()
+        sc._auto_label = lambda: sc.labels.append(sc.auto)
+        sc._loop = lambda: None
+        sc.finish = lambda: setattr(sc, "finished", True)
+        return sc
+
+    def run_steps(self, sc, n):
+        grab, esc = extras.grab_box, extras.esc_pressed
+        extras.grab_box, extras.esc_pressed = (lambda box: None), (lambda: False)
+        try:
+            for _ in range(n):
+                if sc.finished:
+                    break
+                sc._step(sc.gen)
+        finally:
+            extras.grab_box, extras.esc_pressed = grab, esc
+
+    def test_never_scrolled_switches_to_by_hand(self):
+        sc = self.make(["same"] * 3)
+        self.run_steps(sc, 3)
+        self.assertFalse(sc.finished)
+        self.assertFalse(sc.auto)
+
+    def test_end_of_page_finishes(self):
+        sc = self.make(["added", "added", "same", "same", "same"])
+        self.run_steps(sc, 5)
+        self.assertTrue(sc.finished)
+
+
 class OcrTextTest(unittest.TestCase):
     def test_cjk_spaces(self):
         self.assertEqual(extras.tidy_ocr_line("截 图 工 具 MultiCapture v1 . 4"), "截图工具 MultiCapture v1 . 4")

@@ -119,6 +119,18 @@ def cursor_pos():
     return (p.x, p.y) if _u32.GetCursorPos(ctypes.byref(p)) else None
 
 
+def cursor_into(box):
+    """Puts the mouse pointer in the middle of a screen rectangle (unless it is already inside), so that
+    wheel input goes to the window there. Many apps (Chrome, Edge, Office) ignore a posted WM_MOUSEWHEEL."""
+    if not IS_WIN:
+        return
+    l, t, r, b = box
+    cur = cursor_pos()
+    if cur and l <= cur[0] < r and t <= cur[1] < b:
+        return
+    _u32.SetCursorPos((l + r) // 2, (t + b) // 2)
+
+
 def esc_pressed():
     """True if Esc was pressed since the last call, whichever window has the focus."""
     return IS_WIN and bool(_u32.GetAsyncKeyState(0x1B) & 0x0001)
@@ -676,6 +688,7 @@ class ScrollCapture:
         self.master, self.box, self.on_done = master, box, on_done
         self.auto, self.gen, self.closed = auto, 0, False
         self.same = 0
+        self.moved = False      # True once the content has scrolled at least once
         self.stitch = None
         self.frame = RegionFrame(master, box, ACCENT)
         self.bar = FloatBar(master, box, [("auto", "", self.toggle_auto), ("done", "✓  " + tr("Done"), self.finish),
@@ -697,12 +710,16 @@ class ScrollCapture:
             self._close()
             self.on_done(None, str(ex))
             return
+        if self.auto:
+            cursor_into(self.box)     # after the drag the pointer sits on the region's edge, outside it
         self._loop()
 
     def toggle_auto(self):
         self.auto = not self.auto
         self.same = 0
         self._auto_label()
+        if self.auto:
+            cursor_into(self.box)     # the pointer is on the Auto-scroll button, outside the region
         self._loop()
 
     def _loop(self):
@@ -733,12 +750,20 @@ class ScrollCapture:
             self.bar.set(tr("⚠ Lost track – scroll back up a little, then more slowly"))
         elif r == "same":
             self.same += 1
-            if self.auto and self.same >= 3:      # nothing moves any more: end of the page
-                self.finish()
+            if self.auto and self.same >= 3:
+                if self.moved:                    # nothing moves any more: end of the page
+                    self.finish()
+                    return
+                self.auto = False                 # it never moved: this window does not take the wheel
+                self.same = 0
+                self._auto_label()
+                self.bar.set(tr("This window does not scroll by itself - scroll down by hand, then Done or Esc"))
+                self._loop()
                 return
             self.bar.set(tr("{h} px  ·  scroll down (by hand or Auto-scroll)  ·  Esc = done", h=h))
         else:
             self.same = 0
+            self.moved = True
             self.bar.set(tr("{h} px  ·  scroll down (by hand or Auto-scroll)  ·  Esc = done", h=h))
         self._loop()
 
