@@ -3,6 +3,7 @@
 ## Unreleased
 
 - **3D look for shapes**: select a rectangle, ellipse or area polygon and click **Make 3D** (right panel or right-click menu) to turn it into a shaded box, cylinder or prism. Drag the orange ◆ handle to set the depth and the angle; **Pocket (cut)** cuts a hole into the front face. Hidden edges show dashed through see-through solids. It is a drawing on the screenshot (no real 3D model) and is flattened like any other annotation when copying or exporting.
+- **Random theme**: in 🎨 Themes, "🎲 Random theme now" switches to a random installed theme, and "Use a random theme each time the app starts" picks a different one at every start (off by default).
 - **Microsoft Store package**: `build_msix.ps1` builds an MSIX package (signed by the Store when published). In the Store version, settings and history live in the package's own data folder, so "Open folder" opens the right place. CI test-installs the package, checks that it starts, and makes the Store screenshots.
 - **Code signing** of `MultiCapture.exe` in CI with Azure Artifact Signing, switched on by adding the repository secrets (see `docs/CODE_SIGNING.md`).
 - winget manifests (`packaging/winget`), Store listing texts (`docs/STORE.md`) and a privacy policy (`PRIVACY.md`).
