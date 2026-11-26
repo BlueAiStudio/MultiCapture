@@ -467,5 +467,14 @@ pump(0.3)
 assert app.head.winfo_reqwidth() <= app.head.winfo_width() + 2, (app.head.winfo_reqwidth(), app.head.winfo_width())
 print("header fits a narrow window OK", "compact" if app._head_compact else "full")
 
+# the window has our own big and small icons (taskbar button), also when run from source
+import ctypes  # noqa: E402
+_u = ctypes.WinDLL("user32")
+_u.SendMessageW.restype = ctypes.c_void_p
+_u.SendMessageW.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_size_t, ctypes.c_void_p]
+_hwnd = int(root.wm_frame(), 16)
+assert _u.SendMessageW(_hwnd, 0x007F, 1, None) and _u.SendMessageW(_hwnd, 0x007F, 0, None)   # WM_GETICON
+print("window icons OK")
+
 app._shutdown()
 print("ALL OK")

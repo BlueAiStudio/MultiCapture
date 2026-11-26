@@ -25,3 +25,26 @@ if r["error"] or r["nolang"]:
 else:
     assert "MultiCapture" in r["text"], r["text"]
     print("OCR OK")
+
+# Start-menu shortcut for running from source: MultiCapture icon + the app's taskbar ID
+import subprocess  # noqa: E402
+import tempfile  # noqa: E402
+
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+appdata = tempfile.mkdtemp(prefix="mc_lnk_")
+progs = os.path.join(appdata, "Microsoft", "Windows", "Start Menu", "Programs")
+os.makedirs(progs)
+pyw = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
+env = dict(os.environ, APPDATA=appdata)
+out = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+                      os.path.join(root_dir, "install_shortcut.ps1"), "-Source", "-Python", pyw],
+                     env=env, capture_output=True, text=True)
+print(out.stdout, out.stderr)
+assert out.returncode == 0, out.returncode
+lnk = os.path.join(progs, "MultiCapture.lnk")
+assert os.path.exists(lnk)
+q = ("(New-Object -ComObject Shell.Application).NameSpace('%s').ParseName('MultiCapture.lnk')"
+     ".ExtendedProperty('System.AppUserModel.ID')" % progs)
+aumid = subprocess.run(["powershell", "-NoProfile", "-Command", q], capture_output=True, text=True).stdout.strip()
+assert aumid == "MultiCapture.Dev", repr(aumid)
+print("source shortcut OK", aumid)

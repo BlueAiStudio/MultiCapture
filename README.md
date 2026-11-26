@@ -71,6 +71,12 @@ You can also add it to the Start menu, so it shows up in Start search and pins c
 powershell -ExecutionPolicy Bypass -File install_shortcut.ps1
 ```
 
+Running from the Python source instead? This creates a Start-menu shortcut that starts `multicapture.py` with `pythonw.exe` and shows the MultiCapture icon on the taskbar (not the Python one):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install_shortcut.ps1 -Source
+```
+
 ### Files
 
 | File | Purpose |

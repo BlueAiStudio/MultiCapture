@@ -379,6 +379,27 @@ def virtual_screen():
             user32.GetSystemMetrics(78), user32.GetSystemMetrics(79))
 
 
+def set_window_icons(win, ico):
+    """Gives the window's taskbar button our icon in the right sizes (big and small), also when the app
+    runs from source with pythonw.exe - otherwise Windows can show the Python icon there."""
+    try:
+        u32 = ctypes.WinDLL("user32")          # own prototypes, the shared user32 ones stay untouched
+        u32.LoadImageW.restype = ctypes.c_void_p
+        u32.LoadImageW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_uint, ctypes.c_int, ctypes.c_int,
+                                   ctypes.c_uint]
+        u32.SendMessageW.restype = ctypes.c_void_p
+        u32.SendMessageW.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_size_t, ctypes.c_void_p]
+        win.update_idletasks()
+        hwnd = int(win.wm_frame(), 16)
+        for which, metric in ((1, 11), (0, 49)):      # ICON_BIG / SM_CXICON, ICON_SMALL / SM_CXSMICON
+            size = u32.GetSystemMetrics(metric)
+            h = u32.LoadImageW(None, ico, 1, size, size, 0x10)      # IMAGE_ICON, LR_LOADFROMFILE
+            if h:
+                u32.SendMessageW(hwnd, 0x0080, which, h)            # WM_SETICON
+    except Exception:
+        pass
+
+
 def work_area_at(x, y):
     """(left, top, right, bottom) of the work area (screen minus taskbar) of the monitor nearest to (x, y)."""
     class _MI(ctypes.Structure):
@@ -2402,6 +2423,7 @@ class App:
                 root.iconbitmap(default=ico)
             except Exception:
                 pass
+            root.after_idle(lambda: set_window_icons(root, ico))
         self.k = max(1.0, root.winfo_fpixels("1i") / 96.0)
 
         self.items = []          # history, newest first
