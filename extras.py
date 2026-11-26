@@ -6,16 +6,20 @@ Options -> Extra features:
 * Pin to screen   - a screenshot floats above all windows (move, zoom, opacity)
 * Text recognition (OCR) - uses the OCR engine built into Windows 10/11 (offline, no download)
 * Scrolling capture - captures a region while it scrolls and stitches the frames into one image
-* Screen recording - records a region of the screen to an animated GIF
+* Screen recording - records a region of the screen to an animated GIF or an MP4 video
 
-Nothing here adds a dependency: only Pillow, Tkinter, ctypes and the Windows PowerShell that
-ships with Windows (for the OCR bridge). The stitching code is pure Python so it can be tested
+Nothing here adds a required dependency: only Pillow, Tkinter, ctypes and the Windows PowerShell
+that ships with Windows (for the OCR bridge). MP4 needs an ffmpeg program: the one bundled by the
+optional imageio-ffmpeg package (included in the .exe build), one next to the app, or one on PATH.
+Sound in MP4 recordings (microphone, system sound) uses the optional PyAudioWPatch package
+(WASAPI). Without these, recordings can still be saved as GIF / without sound. The stitching code is pure Python so it can be tested
 on any platform.
 """
 import base64
 import ctypes
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -756,15 +760,18 @@ class ScrollCapture:
         self.on_done(None, None)
 
 
-# =========================================================================== SCREEN RECORDING (GIF)
+# =========================================================================== SCREEN RECORDING (GIF / MP4)
+# GIF frames are kept in memory until saved, so GIF recordings are capped. MP4 recordings are
+# encoded while recording (VideoRecorder) and have no length limit.
 REC_MAX_SECONDS = 60
 REC_MAX_SIDE = 1280
 REC_PIXEL_BUDGET = 300_000_000   # frames x pixels kept in memory (about 300 MB while saving the GIF)
 
 
 class Recording:
-    def __init__(self, size):
+    def __init__(self, size, fps=10):
         self.size = size
+        self.fps = fps
         self.frames = []     # zlib-compressed RGB bytes, consecutive duplicates removed
         self.times = []      # start time of each frame (s)
         self.end = 0.0
@@ -793,30 +800,245 @@ def save_gif(rec, path, progress=None):
     first.save(path, save_all=True, append_images=rest(), duration=durs, loop=0, optimize=False)
 
 
-class GifRecorder:
-    def __init__(self, master, box, on_done, fps=10, k=1.0):
-        self.master, self.box, self.on_done = master, box, on_done
-        self.fps = max(1, min(30, int(fps)))
-        self.k = k
-        l, t, r, b = box
-        w, h = r - l, b - t
-        self.scale = min(1.0, REC_MAX_SIDE / max(w, h))
-        self.rec = Recording((max(1, int(w * self.scale)), max(1, int(h * self.scale))))
+def find_ffmpeg():
+    """Path of an ffmpeg program for MP4 export, or None."""
+    here = os.path.dirname(os.path.abspath(sys.executable if getattr(sys, "frozen", False) else __file__))
+    for name in ("ffmpeg.exe", "ffmpeg"):
+        p = os.path.join(here, name)
+        if os.path.isfile(p):
+            return p
+    try:
+        import imageio_ffmpeg
+        p = imageio_ffmpeg.get_ffmpeg_exe()
+        if p and os.path.isfile(p):
+            return p
+    except Exception:
+        pass
+    return shutil.which("ffmpeg")
+
+
+FFMPEG_FLAGS = 0x08000000 if IS_WIN else 0      # CREATE_NO_WINDOW
+VIDEO_MAX_SIDE = 1920
+
+
+def video_cmd(ffmpeg, size, fps, path):
+    """ffmpeg command that reads raw RGB frames on stdin and writes an H.264 MP4."""
+    if not ffmpeg:
+        raise RuntimeError("ffmpeg not found")
+    w, h = size
+    return [ffmpeg, "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
+            "-s", f"{w}x{h}", "-r", str(fps), "-i", "-",
+            "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2", "-c:v", "libx264", "-preset", "veryfast",
+            "-crf", "23", "-pix_fmt", "yuv420p", "-movflags", "+faststart", path]
+
+
+def _ffmpeg_error(proc, errf, what="ffmpeg"):
+    errf.seek(0)
+    msg = errf.read().decode("utf-8", "replace").strip()
+    return msg.splitlines()[-1] if msg else f"{what} exited with code {proc.returncode}"
+
+
+# --------------------------------------------------------------------------- audio (MP4 only)
+def audio_available():
+    """True when the optional PyAudioWPatch package (WASAPI microphone + loopback) can be imported."""
+    try:
+        import pyaudiowpatch  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
+class AudioWriter:
+    """Writes 16-bit PCM chunks to a WAV file, keeping it in step with the wall clock.
+
+    Chunks come with their arrival time (seconds since the recording started). The start of the
+    file is padded with silence until the first chunk, and, when fill_gaps is set, every pause in
+    the data is filled too: Windows sends nothing on the system-sound (loopback) device while no
+    sound plays, and without the padding the sound would drift ahead of the picture.
+    """
+
+    def __init__(self, path, rate, channels, fill_gaps=False):
+        import wave
+        self.rate, self.ch, self.fill_gaps = rate, channels, fill_gaps
+        self.frame_bytes = 2 * channels
+        self.written = 0                       # frames
+        self.lock = threading.Lock()
+        self.w = wave.open(path, "wb")
+        self.w.setnchannels(channels)
+        self.w.setsampwidth(2)
+        self.w.setframerate(rate)
+
+    def _silence(self, frames):
+        while frames > 0:
+            n = min(frames, self.rate)
+            self.w.writeframesraw(b"\0" * (n * self.frame_bytes))
+            self.written += n
+            frames -= n
+
+    def add(self, data, t):
+        n = len(data) // self.frame_bytes
+        with self.lock:
+            if self.w is None:
+                return
+            gap = int(t * self.rate) - n - self.written
+            if gap > self.rate // 20 and (self.fill_gaps or self.written == 0):
+                self._silence(gap)
+            self.w.writeframesraw(data[:n * self.frame_bytes])
+            self.written += n
+
+    def close(self, end):
+        with self.lock:
+            if self.w is None:
+                return
+            self._silence(int(end * self.rate) - self.written)
+            self.w.close()
+            self.w = None
+
+
+class AudioTrack:
+    """Records the default microphone ("mic") or what the speakers play ("system") to a WAV file."""
+
+    def __init__(self, kind, path, t0):
+        import pyaudiowpatch as pa
+        self.t0 = t0
+        self.p = pa.PyAudio()
+        try:
+            if kind == "mic":
+                dev = self.p.get_default_wasapi_device(d_in=True)
+            else:
+                dev = self.p.get_default_wasapi_loopback()
+            rate = int(dev["defaultSampleRate"])
+            ch = max(1, int(dev["maxInputChannels"]))
+            self.writer = AudioWriter(path, rate, ch, fill_gaps=(kind != "mic"))
+
+            def cb(data, frames, info, status):
+                self.writer.add(data, time.perf_counter() - self.t0)
+                return (None, pa.paContinue)
+            self.stream = self.p.open(format=pa.paInt16, channels=ch, rate=rate, input=True,
+                                      input_device_index=dev["index"], frames_per_buffer=rate // 50,
+                                      stream_callback=cb)
+            self.stream.start_stream()
+        except Exception:
+            self.p.terminate()
+            raise
+        self.path = path
+
+    def stop(self, end):
+        try:
+            self.stream.stop_stream()
+            self.stream.close()
+        except Exception:
+            pass
+        self.p.terminate()
+        self.writer.close(end)
+
+
+# --------------------------------------------------------------------------- MP4 result
+class VideoTake:
+    """A finished MP4 recording: a temporary video file plus optional WAV tracks to mix in."""
+
+    def __init__(self, folder, video, audio, duration, notes):
+        self.folder, self.video, self.audio = folder, video, audio
+        self.duration, self.notes = duration, notes
+        self.limit_hit = False
+
+    def discard(self):
+        shutil.rmtree(self.folder, ignore_errors=True)
+
+
+def save_video(take, path, ffmpeg=None):
+    """Moves the recorded video to path, mixing the sound tracks in (AAC) when there are any."""
+    try:
+        if not take.audio:
+            if os.path.exists(path):
+                os.remove(path)
+            shutil.move(take.video, path)
+            return
+        ffmpeg = ffmpeg or find_ffmpeg()
+        cmd = [ffmpeg, "-y", "-loglevel", "error", "-i", take.video]
+        for a in take.audio:
+            cmd += ["-i", a]
+        if len(take.audio) == 1:
+            cmd += ["-map", "0:v", "-map", "1:a"]
+        else:
+            ins = "".join(f"[{i + 1}:a]" for i in range(len(take.audio)))
+            cmd += ["-filter_complex", f"{ins}amix=inputs={len(take.audio)}:duration=longest:normalize=0[a]",
+                    "-map", "0:v", "-map", "[a]"]
+        cmd += ["-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-ac", "2",
+                "-t", f"{take.duration:.3f}", "-movflags", "+faststart", path]
+        with tempfile.TemporaryFile() as errf:
+            proc = subprocess.run(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=errf,
+                                  creationflags=FFMPEG_FLAGS)
+            if proc.returncode != 0:
+                raise RuntimeError(_ffmpeg_error(proc, errf))
+    finally:
+        take.discard()
+
+
+class _RecorderUI:
+    """Red frame + control bar shared by the GIF and MP4 recorders."""
+
+    def _setup_ui(self, master, box, on_done, k):
+        self.master, self.box, self.on_done, self.k = master, box, on_done, k
         self.stop_ev = threading.Event()
-        self.cancelled = False
         self.closed = False
         self.frame = RegionFrame(master, box, REC_RED)
         self.bar = FloatBar(master, box, [("stop", "■  " + tr("Stop"), self.stop),
                                           ("cancel", "✕  " + tr("Cancel"), self.cancel)], dot=REC_RED)
         self.bar.set("0:00")
         esc_pressed()
+
+    def _tick(self):
+        if self.closed:
+            return
+        if esc_pressed():
+            self.stop()
+            return
+        if not self.th.is_alive():          # length / memory limit reached, or an error
+            self.stop()
+            return
+        s = int(time.perf_counter() - self.t0)
+        txt = f"{s // 3600}:{s // 60 % 60:02d}:{s % 60:02d}" if s >= 3600 else f"{s // 60}:{s % 60:02d}"
+        self.bar.set(txt + "  ·  " + tr("Esc or Stop to finish"))
+        self.master.after(250, self._tick)
+
+    def _grab(self, size, scale):
+        try:
+            im = grab_box(self.box)
+        except Exception:
+            return None
+        if im is None:
+            return None
+        l, t = self.box[0], self.box[1]
+        cur = cursor_pos()
+        if cur and l <= cur[0] < self.box[2] and t <= cur[1] < self.box[3]:
+            draw_cursor(im, cur[0] - l, cur[1] - t, self.k)
+        if scale < 1:
+            im = im.resize(size, Image.BILINEAR)
+        return im
+
+    def stop(self):
+        self._finish(False)
+
+    def cancel(self):
+        self._finish(True)
+
+
+class GifRecorder(_RecorderUI):
+    def __init__(self, master, box, on_done, fps=10, k=1.0):
+        self._setup_ui(master, box, on_done, k)
+        self.fps = max(1, min(30, int(fps)))
+        l, t, r, b = box
+        w, h = r - l, b - t
+        self.scale = min(1.0, REC_MAX_SIDE / max(w, h))
+        self.rec = Recording((max(1, int(w * self.scale)), max(1, int(h * self.scale))), self.fps)
         self.t0 = time.perf_counter()
         self.th = threading.Thread(target=self._run, daemon=True)
         self.th.start()
         self._tick()
 
     def _run(self):
-        rec, box, l, t = self.rec, self.box, self.box[0], self.box[1]
+        rec = self.rec
         interval = 1.0 / self.fps
         nxt = time.perf_counter()
         last = None
@@ -826,16 +1048,8 @@ class GifRecorder:
             if now - self.t0 > REC_MAX_SECONDS or (len(rec.frames) + 1) * px > REC_PIXEL_BUDGET:
                 rec.limit_hit = True
                 break
-            try:
-                im = grab_box(box)
-            except Exception:
-                im = None
+            im = self._grab(rec.size, self.scale)
             if im is not None:
-                cur = cursor_pos()
-                if cur and l <= cur[0] < box[2] and t <= cur[1] < box[3]:
-                    draw_cursor(im, cur[0] - l, cur[1] - t, self.k)
-                if self.scale < 1:
-                    im = im.resize(rec.size, Image.BILINEAR)
                 data = zlib.compress(im.tobytes(), 1)
                 if data != last:
                     rec.frames.append(data)
@@ -844,19 +1058,6 @@ class GifRecorder:
             nxt += interval
             time.sleep(max(0.0, nxt - time.perf_counter()))
         rec.end = time.perf_counter() - self.t0
-
-    def _tick(self):
-        if self.closed:
-            return
-        if esc_pressed():
-            self.stop()
-            return
-        if not self.th.is_alive():          # length / memory limit reached
-            self.stop()
-            return
-        s = int(time.perf_counter() - self.t0)
-        self.bar.set(f"{s // 60}:{s % 60:02d}  ·  " + tr("Esc or Stop to finish"))
-        self.master.after(250, self._tick)
 
     def _finish(self, cancelled):
         if self.closed:
@@ -868,8 +1069,87 @@ class GifRecorder:
         self.bar.destroy()
         self.on_done(None if cancelled or not self.rec.frames else self.rec)
 
-    def stop(self):
-        self._finish(False)
 
-    def cancel(self):
-        self._finish(True)
+class VideoRecorder(_RecorderUI):
+    """Records straight into an H.264 MP4 file while recording, so there is no length limit and
+    memory use stays flat. Optional sound: microphone and/or system sound (see AudioTrack)."""
+
+    def __init__(self, master, box, on_done, fps=10, k=1.0, ffmpeg=None, mic=False, system=False):
+        self.fps = max(1, min(30, int(fps)))
+        l, t, r, b = box
+        w, h = r - l, b - t
+        self.scale = min(1.0, VIDEO_MAX_SIDE / max(w, h))
+        self.size = (max(1, int(w * self.scale)), max(1, int(h * self.scale)))
+        self.folder = tempfile.mkdtemp(prefix="MultiCapture_rec_")
+        self.video = os.path.join(self.folder, "video.mp4")
+        self.errf = tempfile.TemporaryFile()
+        try:
+            self.proc = subprocess.Popen(video_cmd(ffmpeg or find_ffmpeg(), self.size, self.fps, self.video),
+                                         stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=self.errf,
+                                         creationflags=FFMPEG_FLAGS)
+        except Exception:
+            self.errf.close()
+            shutil.rmtree(self.folder, ignore_errors=True)
+            raise
+        self._setup_ui(master, box, on_done, k)
+        self.error = None
+        self.notes = []
+        self.frames = 0
+        self.t0 = time.perf_counter()
+        self.tracks = []
+        for kind, on, label in (("mic", mic, tr("microphone")), ("system", system, tr("system sound"))):
+            if on:
+                try:
+                    self.tracks.append(AudioTrack(kind, os.path.join(self.folder, kind + ".wav"), self.t0))
+                except Exception:
+                    self.notes.append(tr("no {what} recorded (device not available)", what=label))
+        self.th = threading.Thread(target=self._run, daemon=True)
+        self.th.start()
+        self._tick()
+
+    def _run(self):
+        interval = 1.0 / self.fps
+        nxt = time.perf_counter()
+        raw = None
+        try:
+            while not self.stop_ev.is_set():
+                im = self._grab(self.size, self.scale)
+                if im is not None:
+                    raw = im.tobytes()
+                if raw is not None:
+                    # one frame per 1/fps of wall-clock time, so the video keeps pace with the sound
+                    target = int((time.perf_counter() - self.t0) * self.fps) + 1
+                    while self.frames < target:
+                        self.proc.stdin.write(raw)
+                        self.frames += 1
+                nxt = max(nxt + interval, time.perf_counter() - interval)
+                time.sleep(max(0.0, nxt - time.perf_counter()))
+        except (BrokenPipeError, OSError) as ex:
+            self.error = str(ex)
+
+    def _finish(self, cancelled):
+        if self.closed:
+            return
+        self.closed = True
+        self.stop_ev.set()
+        self.th.join(timeout=5)
+        duration = self.frames / self.fps
+        for tr_ in self.tracks:
+            tr_.stop(duration)
+        try:
+            self.proc.stdin.close()
+        except OSError:
+            pass
+        code = self.proc.wait()
+        if code != 0 and not self.error:
+            self.error = _ffmpeg_error(self.proc, self.errf)
+        self.errf.close()
+        self.frame.destroy()
+        self.bar.destroy()
+        if cancelled or self.frames == 0:
+            shutil.rmtree(self.folder, ignore_errors=True)
+            self.on_done(None)
+            return
+        take = VideoTake(self.folder, self.video, [t.path for t in self.tracks], duration, self.notes)
+        take.error = self.error if code != 0 else None
+        self.on_done(take)
