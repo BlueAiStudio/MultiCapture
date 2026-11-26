@@ -1539,8 +1539,18 @@ class FlatButton(tk.Label):
             Tooltip(self, tip, below=tip_below)
 
     def _click(self, e):
-        if self.command:
+        if self.command and getattr(self, "_enabled", True):
             self.command()
+
+    def set_enabled(self, on):
+        """Greyed out and not clickable when off."""
+        on = bool(on)
+        if getattr(self, "_enabled", True) == on:
+            return
+        self._enabled = on
+        if not hasattr(self, "_fg_on"):
+            self._fg_on = self.cget("fg")
+        self.configure(fg=self._fg_on if on else MUTED, cursor="hand2" if on else "arrow")
 
     def set_colors(self, bg, fg=None, hover=None):
         self._bg = bg
@@ -2525,6 +2535,14 @@ class App:
             self.view_btns[name] = b
 
         tk.Frame(head, bg=BORDER, width=1).pack(side="left", fill="y", padx=12, pady=10)
+        self.undo_btn = FlatButton(head, command=self.undo, padx=6, **self._hbtn("undo", "↶", tr("Undo")),
+                                   tip=tr("Undo the last change  (Ctrl+Z)"))
+        self.undo_btn.pack(side="left")
+        self.redo_btn = FlatButton(head, command=self.redo, padx=6, **self._hbtn("redo", "↷", tr("Redo")),
+                                   tip=tr("Redo what was undone  (Ctrl+Y / Ctrl+Shift+Z)"))
+        self.redo_btn.pack(side="left")
+        self._update_undo_btns()
+        tk.Frame(head, bg=BORDER, width=1).pack(side="left", fill="y", padx=12, pady=10)
         FlatButton(head, command=self.copy_view, **self._hbtn("copy", "⧉", tr("Copy")),
                    tip=tr("Copy the current view to the clipboard  (Ctrl+C)")).pack(side="left")
         self.save_btn = FlatButton(head, command=self._save_menu, **self._hbtn("save", "💾", tr("Save") + " ▾"),
@@ -3410,6 +3428,7 @@ class App:
 
     # ===================================================================== history list
     def _rebuild_list(self):
+        self._update_undo_btns()
         for w in self.list_frame.winfo_children():
             w.destroy()
         self.cards = {}
@@ -3966,6 +3985,7 @@ class App:
         self.canvas.focus_set()
 
     def _update_panel(self):
+        self._update_undo_btns()
         o = self.sel_obj
         kind = o["type"] if o else self.tool.get()
         if o:
@@ -4267,6 +4287,7 @@ class App:
         if len(it["undo"]) > 150:
             it["undo"].pop(0)
         it["redo"].clear()
+        self._update_undo_btns()
 
     def push_undo(self):
         if self.sel:
@@ -4275,6 +4296,18 @@ class App:
     def pop_undo(self):
         if self.sel and self.sel["undo"]:
             self.sel["undo"].pop()
+        self._update_undo_btns()
+
+    def _update_undo_btns(self):
+        """Grey the Undo / Redo buttons when the selected screenshot has nothing to undo / redo."""
+        it = self.sel
+        for name, key in (("undo_btn", "undo"), ("redo_btn", "redo")):
+            b = getattr(self, name, None)
+            if b is not None:
+                try:
+                    b.set_enabled(bool(it and it.get(key)))
+                except tk.TclError:
+                    pass
 
     def _restore(self, it, src, dst):
         """Undo / redo step. Entries are the annotations as JSON, or (JSON, image, scale) after
@@ -4308,6 +4341,7 @@ class App:
 
     def changed(self):
         it = self.sel
+        self._update_undo_btns()
         if not it:
             return
         it["dirty"] = True
@@ -5317,7 +5351,7 @@ class App:
             elif ks == "c":
                 self.copy_view()
             elif ks == "z":
-                self.undo()
+                (self.redo if shift else self.undo)()
             elif ks == "y":
                 self.redo()
             elif ks == "d":

@@ -222,6 +222,9 @@ TR = {
     "{name} measurement added": ("Mesure ajoutée : {name}", "已添加测量：{name}"),
     "Undo": ("Annuler", "撤销"),
     "Redo": ("Rétablir", "重做"),
+    "Undo the last change  (Ctrl+Z)": ("Annuler la dernière modification  (Ctrl+Z)", "撤销上一步操作  (Ctrl+Z)"),
+    "Redo what was undone  (Ctrl+Y / Ctrl+Shift+Z)": ("Rétablir ce qui a été annulé  (Ctrl+Y / Ctrl+Maj+Z)",
+                                                      "重做刚才撤销的操作  (Ctrl+Y / Ctrl+Shift+Z)"),
     "Scale set: {px} px = {v} {u}  →  1 px = {k} {u}": ("Échelle : {px} px = {v} {u}  →  1 px = {k} {u}", "比例已设置：{px} px = {v} {u}  →  1 px = {k} {u}"),
     "Copied {label} to clipboard ({w} × {h})": ("{label} copiée dans le presse-papiers ({w} × {h})", "已将{label}复制到剪贴板 ({w} × {h})"),
     "✓ Copied {label}": ("✓ {label} copiée", "✓ 已复制{label}"),
@@ -778,7 +781,7 @@ MultiCapture keeps every screenshot you take. Arrange several of them on one boa
 - Stamp: ✔ ✘ ★ ! ? ⚠ … choose the symbol in the right panel.
 - Blur: drag over confidential information to pixelate it.
 - Colour, line width, fill and opacity are set in the right panel.
-> Every annotation stays editable: choose Select (V), click an object, then drag it, pull its white handles, change its colour / size in the right panel, or press Delete. Ctrl+Z / Ctrl+Y = undo / redo, Ctrl+D = duplicate, arrow keys = nudge.
+> Every annotation stays editable: choose Select (V), click an object, then drag it, pull its white handles, change its colour / size in the right panel, or press Delete. Ctrl+Z / Ctrl+Y = undo / redo (also the ↶ Undo / ↷ Redo buttons in the top bar), Ctrl+D = duplicate, arrow keys = nudge.
 
 # 5. Text boxes and callouts (like Word)
 - Text (T): click where the text should go and type. Enter = new line; click outside, Esc or Ctrl+Enter = finish.
@@ -876,7 +879,7 @@ MultiCapture conserve toutes vos captures d'écran. Disposez-en plusieurs sur un
 - Tampon : ✔ ✘ ★ ! ? ⚠ … choisissez le symbole dans le panneau de droite.
 - Flou : glissez sur une information confidentielle pour la pixeliser.
 - Couleur, épaisseur, remplissage et opacité se règlent dans le panneau de droite.
-> Toutes les annotations restent modifiables : outil Sélection (V), cliquez un objet puis déplacez-le, tirez ses poignées blanches, changez sa couleur / taille à droite, ou appuyez sur Suppr. Ctrl+Z / Ctrl+Y = annuler / rétablir, Ctrl+D = dupliquer, flèches = déplacement fin.
+> Toutes les annotations restent modifiables : outil Sélection (V), cliquez un objet puis déplacez-le, tirez ses poignées blanches, changez sa couleur / taille à droite, ou appuyez sur Suppr. Ctrl+Z / Ctrl+Y = annuler / rétablir (aussi les boutons ↶ Annuler / ↷ Rétablir de la barre du haut), Ctrl+D = dupliquer, flèches = déplacement fin.
 
 # 5. Zones de texte et bulles (comme Word)
 - Texte (T) : cliquez à l'endroit voulu et tapez. Entrée = nouvelle ligne ; clic à l'extérieur, Échap ou Ctrl+Entrée = terminer.
@@ -974,7 +977,7 @@ MultiCapture 会保留你截的每一张图。可以把多张截图放在同一�
 - 符号：✔ ✘ ★ ! ? ⚠ …，在右侧面板中选择符号。
 - 马赛克：在敏感信息上拖动即可打码。
 - 颜色、线宽、填充和不透明度在右侧面板中设置。
-> 所有标注都可以随时修改：选择「选择」工具（V），点击对象后可拖动、拉动白色控制点调整大小、在右侧修改颜色 / 大小，或按 Delete 删除。Ctrl+Z / Ctrl+Y 撤销 / 重做，Ctrl+D 复制，方向键微移。
+> 所有标注都可以随时修改：选择「选择」工具（V），点击对象后可拖动、拉动白色控制点调整大小、在右侧修改颜色 / 大小，或按 Delete 删除。Ctrl+Z / Ctrl+Y 撤销 / 重做（顶部栏也有 ↶ 撤销 / ↷ 重做 按钮），Ctrl+D 复制，方向键微移。
 
 # 5. 文本框和标注框（类似 Word）
 - 文字（T）：在需要的位置点击并输入。回车换行；点击外部、按 Esc 或 Ctrl+回车 完成。
