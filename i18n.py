@@ -112,6 +112,14 @@ TR = {
     "LINE WIDTH": ("ÉPAISSEUR", "线宽"),
     "FILL": ("REMPLISSAGE", "填充"),
     "Fill shape": ("Remplir", "填充形状"),
+    "3D": ("3D", "立体"),
+    "Make 3D": ("Rendre en 3D", "变立体"),
+    "Make flat": ("Remettre à plat", "恢复平面"),
+    "Pocket (cut)": ("Poche (découpe)", "挖槽（切除）"),
+    "Rectangle → box, ellipse → cylinder, polygon → prism":
+        ("Rectangle → boîte, ellipse → cylindre, polygone → prisme", "矩形 → 立方体，椭圆 → 圆柱，多边形 → 棱柱"),
+    "Drag the orange ◆ handle to set depth and angle":
+        ("Faites glisser la poignée orange ◆ pour régler la profondeur et l'angle", "拖动橙色 ◆ 手柄调整深度和角度"),
     "Opacity": ("Opacité", "不透明度"),
     "TEXT": ("TEXTE", "文字"),
     "Bold": ("Gras", "粗体"),

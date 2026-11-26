@@ -199,6 +199,13 @@ def transform_objs(objs, op, size, arg=None, text_size=None):
             o["box"] = [min(a, c), min(b, d), max(a, c), max(b, d)]
         if o.get("leader"):
             o["leader"] = list(f(*o["leader"]))
+        if o.get("solid"):   # pseudo-3D depth vector turns / flips / scales with the picture
+            sd = dict(o["solid"])
+            a = math.radians(sd.get("ang", 45))
+            (x0, y0), (x1, y1) = f(0, 0), f(sd.get("depth", 40) * math.cos(a), -sd.get("depth", 40) * math.sin(a))
+            sd["depth"] = round(math.hypot(x1 - x0, y1 - y0), 1)
+            sd["ang"] = round(math.degrees(math.atan2(-(y1 - y0), x1 - x0)) % 360, 1)
+            o["solid"] = sd
         if t == "text":
             cx, cy = centre
             w1, h1 = text_size(o) if text_size else (0, 0)
