@@ -453,6 +453,8 @@ assert mc.fit_geometry("garbage", (0, 0, 100, 100)) == "garbage"
 print("window kept on screen OK")
 
 # the header switches to icons only when it does not fit, and back
+app._set_head_compact(False)     # the CI screen is small: the header may already be compact
+pump(0.2)
 full = {w: w.cget("text") for w in app._head_labels()}
 app._set_head_compact(True)
 pump(0.2)
