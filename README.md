@@ -91,7 +91,8 @@ powershell -ExecutionPolicy Bypass -File install_shortcut.ps1 -Source
 | `tests/` | Tests for the optional features (`python -m unittest discover tests`) |
 | `make_icon.py` | Generates `multicapture.ico` / `.png` |
 | `build.ps1` | PyInstaller build script |
-| `install_shortcut.ps1` | Optional local install plus Start-menu shortcut |
+| `install_shortcut.ps1` | Optional local install plus Start-menu shortcut (`-Source`: shortcut for running from source) |
+| `shortcut_id.py` | Sets the taskbar ID of that shortcut (used by `install_shortcut.ps1 -Source`) |
 
 Session data is stored in `%APPDATA%\MultiCapture\`.
 
