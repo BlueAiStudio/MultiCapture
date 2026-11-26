@@ -215,6 +215,13 @@ def transform_objs(objs, op, size, arg=None, text_size=None):
             cx, cy = centre
             w1, h1 = text_size(o) if text_size else (0, 0)
             o["x"], o["y"] = cx - w1 / 2, cy - h1 / 2
+        elif t == "image" and op in TRANSPOSE:   # a picture laid over the screenshot turns with it
+            import dropin
+            src = dropin.OVERLAYS.get(o.get("src"))
+            if src is not None:
+                o["src"] = dropin.OVERLAYS.put(src.transpose(TRANSPOSE[op]))
+                if op in ("rot_cw", "rot_ccw"):
+                    o["ratio"] = src.height / src.width
         elif t == "fill":
             m = mask_from_str(o["mask"])
             (a, b), (c, d) = f(o["x"], o["y"]), f(o["x"] + m.width, o["y"] + m.height)

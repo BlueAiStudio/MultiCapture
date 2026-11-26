@@ -23,6 +23,42 @@ def tr(s, **kw):
 
 
 TR = {
+    # ---------------------------------------------------------------- pictures dragged in / laid over
+    "Picture": ("Image", "图片"),
+    "PICTURE": ("IMAGE", "图片"),
+    "Add pictures": ("Ajouter des images", "添加图片"),
+    "{n} picture(s) dropped – what should happen?": ("{n} image(s) déposée(s) – que faire ?", "拖入了 {n} 张图片，要怎么处理？"),
+    "Merge with the other screenshots": ("Fusionner avec les autres captures", "和现有其他图片合并"),
+    "Added to the history and to the board (2×2, 3×3 …), copied together as one picture.":
+        ("Ajoutée(s) à l'historique et à la planche (2×2, 3×3 …), copiées ensemble en une seule image.",
+         "加入历史记录和拼图（2×2、3×3 …），和其他截图一起合成一张图复制。"),
+    "Open on its own": ("Ouvrir à part", "单独打开"),
+    "Added to the history and shown alone, kept out of the board.":
+        ("Ajoutée(s) à l'historique et affichée(s) seule(s), hors de la planche.",
+         "加入历史记录并单独显示，不放进拼图。"),
+    "Float on top of the current screenshot": ("Superposer sur la capture actuelle", "悬浮到当前图片上"),
+    "Laid over {t} as a picture you can move and resize; merged into it when copying or saving.":
+        ("Posée sur {t}, déplaçable et redimensionnable ; fusionnée avec elle à la copie ou à l'enregistrement.",
+         "放在 {t} 上面，可以拖动和缩放；复制或保存时合并成一张图。"),
+    "Open a screenshot first.": ("Ouvrez d'abord une capture.", "请先打开一张截图。"),
+    "Float on top of the current screenshot (#{n})": ("Superposer sur la capture actuelle (n° {n})", "悬浮到当前图片上 (#{n})"),
+    "Add to board": ("Ajouter à la planche", "加入拼图"),
+    "Opening dropped pictures…": ("Ouverture des images déposées…", "正在打开拖入的图片…"),
+    "These could not be opened as pictures:": ("Impossible d'ouvrir ces éléments comme images :", "以下内容无法作为图片打开："),
+    "Nothing added – drop picture files, or pictures from a web page":
+        ("Rien n'a été ajouté – déposez des fichiers image ou des images d'une page web",
+         "没有添加任何内容 —— 请拖入图片文件，或网页上的图片"),
+    "Cancelled": ("Annulé", "已取消"),
+    "{n} picture(s) added": ("{n} image(s) ajoutée(s)", "已添加 {n} 张图片"),
+    "  ·  merged into the board": ("  ·  fusionnée(s) dans la planche", "  ·  已合并到拼图"),
+    "{n} picture(s) placed on #{num}  ·  drag to move, corners to resize":
+        ("{n} image(s) posée(s) sur n° {num}  ·  glisser pour déplacer, coins pour redimensionner",
+         "已在 #{num} 上放置 {n} 张图片  ·  拖动可移动，拖角可缩放"),
+    "Original size": ("Taille d'origine", "原始大小"),
+    "Show the picture at its own pixel size (1:1)": ("Afficher l'image à sa taille en pixels (1:1)", "按图片自身像素大小显示 (1:1)"),
+    "Drag to move · drag a corner to resize · merged into the screenshot when copying or saving":
+        ("Glisser pour déplacer · un coin pour redimensionner · fusionnée avec la capture à la copie ou à l'enregistrement",
+         "拖动可移动 · 拖角可缩放 · 复制或保存时与截图合并"),
     # ---------------------------------------------------------------- header
     "New capture": ("Nouvelle capture", "新建截图"),
     "New capture  (Ctrl+N)\nGlobal hotkey from anywhere: Ctrl+Alt+S":
@@ -727,6 +763,8 @@ MultiCapture keeps every screenshot you take. Arrange several of them on one boa
 - Drag a cell onto another cell to swap their positions.
 - Double-click a cell to open that screenshot in Single view for editing.
 - Right-click a history card → "Move to end of board" to bring an older screenshot back into the board.
+- Drag pictures in from Explorer or a web browser (onto the image or the history). A dialog asks what to do: Merge with the other screenshots (added to the board), Open on its own (kept out of the board – right-click its card → "Add to board" later), or Float on top of the current screenshot.
+- Float on top: the picture lies over the screenshot like an annotation. With Select, drag it to move, drag a corner to resize (proportions kept), set a border and the opacity in the PICTURE section, Delete removes it. It is merged into the screenshot when copying or saving. Right-click another history card → "Float on top of the current screenshot" does the same with one of your screenshots.
 - Delete ▾: delete the selected screenshot (Delete key), the screenshots of the current board, or ALL screenshots at once (Ctrl+Shift+Delete). You are asked to confirm, with a warning if some were never saved to a file.
 
 # 3. Automatic copy – paste anywhere
@@ -823,6 +861,8 @@ MultiCapture conserve toutes vos captures d'écran. Disposez-en plusieurs sur un
 - Faites glisser une case sur une autre pour échanger leurs positions.
 - Double-cliquez sur une case pour ouvrir la capture en vue Unique et la modifier.
 - Clic droit sur une carte de l'historique → « Placer en fin de planche » pour remettre une ancienne capture dans la planche.
+- Glissez des images depuis l'Explorateur ou un navigateur web (sur l'image ou sur l'historique). Une fenêtre demande quoi faire : Fusionner avec les autres captures (ajoutées à la planche), Ouvrir à part (hors de la planche – clic droit sur sa carte → « Ajouter à la planche » plus tard), ou Superposer sur la capture actuelle.
+- Superposer : l'image est posée sur la capture comme une annotation. Avec Sélection, faites-la glisser pour la déplacer, tirez un coin pour la redimensionner (proportions conservées), réglez bordure et opacité dans la section IMAGE ; Suppr l'enlève. Elle est fusionnée avec la capture à la copie ou à l'enregistrement. Clic droit sur une autre carte de l'historique → « Superposer sur la capture actuelle » fait de même avec une de vos captures.
 - Supprimer ▾ : supprimer la capture sélectionnée (touche Suppr), les captures de la planche actuelle, ou TOUTES les captures d'un coup (Ctrl+Maj+Suppr). Une confirmation est demandée, avec un avertissement si certaines n'ont jamais été enregistrées.
 
 # 3. Copie automatique – collez partout
@@ -919,6 +959,8 @@ MultiCapture 会保留你截的每一张图。可以把多张截图放在同一�
 - 把一个格子拖到另一个格子上，即可交换两张截图的位置。
 - 双击格子，可切换到单张视图进行编辑。
 - 在历史记录卡片上右键 →「移到拼图最后」，可以把较早的截图重新放进拼图。
+- 可以从资源管理器或浏览器把图片直接拖进来（拖到图片区或历史记录上）。会弹出选择框：「和现有其他图片合并」（加入拼图）、「单独打开」（不放进拼图，之后可在卡片上右键 →「加入拼图」），或「悬浮到当前图片上」。
+- 悬浮：图片像标注一样放在截图上面。用「选择」工具拖动可移动，拖角可缩放（保持比例），在右侧「图片」栏可设置边框和不透明度，按 Delete 删除。复制或保存时会和截图合并成一张图。在另一张历史卡片上右键 →「悬浮到当前图片上」，也可以把自己的截图叠加上去。
 - 「删除 ▾」菜单：可以删除选中的截图（Delete 键）、删除当前拼图里的截图，或一次删除全部截图（Ctrl+Shift+Delete）。删除前会让你确认，如果有截图还没保存成文件，也会提醒你。
 
 # 3. 自动复制 —— 随处粘贴
