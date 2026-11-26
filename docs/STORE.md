@@ -72,8 +72,10 @@ so you can compare, arrange, annotate and paste several screenshots at once, wit
 Free and open source (MIT). No account, no ads, no tracking. Your screenshots never leave your computer.
 
 **What's new in this version:**
-Themes with their own colours, icons and screenshot frames. Optional text recognition, pin on top,
-scrolling capture and GIF recording (Options → Extra features).
+Drag pictures in from Explorer or a web browser and float them over a screenshot. Screen recording to MP4
+with microphone and system sound, no time limit. Paint-style eraser, fill and colour picker, crop / rotate /
+resize. Same-spot recapture with a before / after compare. Board report as PDF or Word. Tables, symbols,
+3D-look shapes, Undo / Redo buttons and a random theme.
 
 **Product features** (one per line, max 200 characters each):
 - Keeps every screenshot in a history panel instead of overwriting the last one
@@ -117,7 +119,7 @@ scrolling capture and GIF recording (Options → Extra features).
 免费开源（MIT）。无需账号、无广告、不跟踪。你的截图不会离开你的电脑。
 
 **此版本的新增内容：**
-新增主题，可更换配色、图标和截图边框。新增可选的文字识别、置顶贴图、滚动截图和 GIF 录制（选项 → 扩展功能）。
+可以从资源管理器或浏览器拖入图片，并悬浮在截图上。录屏可保存为 MP4，同时录麦克风和系统声音，不限时长。新增像“画图”一样的橡皮擦、油漆桶、取色器，以及裁剪、旋转、调整大小。同位置重截，并可对比前后变化。拼图可导出为 PDF 或 Word 报告。新增表格、符号、立体图形、撤销 / 重做按钮和随机主题。
 
 **产品功能：**
 - 每张截图都保留在历史面板里，不会覆盖上一张
@@ -166,8 +168,10 @@ panneau d'historique : comparez, disposez, annotez et collez plusieurs captures 
 Gratuit et open source (MIT). Sans compte, sans publicité, sans suivi. Vos captures ne quittent jamais votre ordinateur.
 
 **Nouveautés de cette version :**
-Thèmes avec leurs propres couleurs, icônes et cadres. Reconnaissance de texte, épinglage, capture défilante
-et enregistrement GIF en option (Options → Fonctions supplémentaires).
+Glissez des images depuis l'Explorateur ou un navigateur et superposez-les sur une capture. Enregistrement
+d'écran en MP4 avec le micro et le son du système, sans limite de durée. Gomme, remplissage et pipette comme
+dans Paint, recadrer / pivoter / redimensionner. Nouvelle capture au même endroit avec comparaison avant / après.
+Rapport de la planche en PDF ou Word. Tableaux, symboles, formes en 3D, boutons Annuler / Rétablir et thème au hasard.
 
 **Fonctionnalités du produit :**
 - Garde chaque capture dans un historique au lieu d'écraser la précédente
