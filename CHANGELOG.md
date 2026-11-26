@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Scrolling capture of an inner panel**: when the rectangle also covers parts that stay still (a dialog's side pane, a comment column, a page sidebar), only the panel that scrolls was not recognised and the capture lost track. The moving panel is now found from the first scroll step, and the long image keeps just that panel.
 - **Fix**: scrolling capture stopped right after the rectangle was drawn in browsers and many other apps (the pointer was left on the rectangle's edge, so the automatic scroll never reached the window). The pointer is now moved into the rectangle while it scrolls automatically, and a window that does not scroll by itself switches to scrolling by hand instead of stopping.
 - **Fix**: a maximized window now comes back maximized after a capture, same-spot capture, scrolling capture or recording (it used to come back in its normal size).
 - **Select several annotations**: with Select, `Ctrl` / `Shift` + click adds or removes one, `Shift` + drag on an empty spot selects with a box, `Ctrl+A` selects all. Move them together (drag or arrow keys), Delete, Duplicate, Bring to front / Send to back, and change colour, width, fill or font for all of them at once, each in one undo step.
