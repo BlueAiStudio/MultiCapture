@@ -428,5 +428,21 @@ app.undo_btn._click(None)       # greyed: does nothing
 assert len(it["objs"]) == n
 print("undo / redo buttons OK")
 
+root.state("zoomed")              # a maximized window stays maximized after a capture
+pump(0.3)
+app._hide_windows()
+pump(0.3)
+app._capture_done(None, None)
+pump(0.5)
+assert root.state() == "zoomed", root.state()
+root.state("normal")
+pump(0.3)
+app._hide_windows()
+pump(0.3)
+app._capture_done(None, None)
+pump(0.5)
+assert root.state() == "normal", root.state()
+print("stays maximized after capture OK")
+
 app._shutdown()
 print("ALL OK")

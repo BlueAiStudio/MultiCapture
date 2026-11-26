@@ -3104,8 +3104,27 @@ class App:
     def _delay_s(self):
         return {"No delay": 0, "3 s": 3, "5 s": 5, "10 s": 10}.get(self._key(self.delay_var, DELAY_KEYS), 0)
 
-    def _hide_windows(self):
+    def _hide_main(self):
+        """Hides the main window for a capture, remembering whether it was maximized: withdraw() +
+        deiconify() alone brings a maximized window back in its normal (restored) size on Windows."""
+        try:
+            self._pre_hide_state = self.root.state()
+        except tk.TclError:
+            self._pre_hide_state = None
         self.root.withdraw()
+
+    def _show_main(self):
+        """Shows the main window again after a capture, maximized again if it was before."""
+        self.root.deiconify()
+        if getattr(self, "_pre_hide_state", None) == "zoomed":
+            try:
+                self.root.state("zoomed")
+            except tk.TclError:
+                pass
+        self._pre_hide_state = None
+
+    def _hide_windows(self):
+        self._hide_main()
         if self.cmp:
             self.cmp.hide()
 
@@ -3144,7 +3163,7 @@ class App:
             shot = ImageGrab.grab(all_screens=True)
         except Exception as ex:
             self.busy = False
-            self.root.deiconify()
+            self._show_main()
             messagebox.showerror(tr("Capture failed"), str(ex))
             return
         mode = self._key(self.mode_var, self._mode_keys())
@@ -3162,7 +3181,7 @@ class App:
         """`box` = rectangle chosen by the user (becomes the "Last region"); `pos` = where on the screen the
         image was taken, kept with the screenshot for "Same spot"; `src` = screenshot this one re-captures."""
         self.busy = False
-        self.root.deiconify()
+        self._show_main()
         self.root.lift()
         self.root.focus_force()
         if self.cmp:
@@ -6438,7 +6457,7 @@ class App:
         def done(result, err):
             if err:
                 self.busy = False
-                self.root.deiconify()
+                self._show_main()
                 messagebox.showerror(tr("Capture failed"), err, parent=self.root)
                 return
             self._capture_done(result, None)
@@ -6451,7 +6470,7 @@ class App:
         self.commit_edit()
         self.cancel_building()
         self.busy = True
-        self.root.withdraw()
+        self._hide_main()
         self.root.after(280, self._record_grab)
 
     def _record_grab(self):
@@ -6459,7 +6478,7 @@ class App:
             shot = ImageGrab.grab(all_screens=True)
         except Exception as ex:
             self.busy = False
-            self.root.deiconify()
+            self._show_main()
             messagebox.showerror(tr("Capture failed"), str(ex))
             return
         vx, vy, vw, vh = virtual_screen()
@@ -6471,7 +6490,7 @@ class App:
     def _record_region(self, img, box):
         if img is None:
             self.busy = False
-            self.root.deiconify()
+            self._show_main()
             self.set_status(tr("Recording cancelled"))
             return
         vx, vy, _, _ = virtual_screen()
@@ -6491,7 +6510,7 @@ class App:
 
     def _record_done(self, rec):
         self.busy = False
-        self.root.deiconify()
+        self._show_main()
         self.root.lift()
         if rec is None:
             self.set_status(tr("Recording cancelled"))
