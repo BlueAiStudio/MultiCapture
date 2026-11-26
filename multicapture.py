@@ -54,6 +54,7 @@ APP_NAME = "MultiCapture"
 VERSION = "1.4.0"
 # Full-size screenshots kept in RAM at once; older ones are reloaded from the session folder on demand.
 MAX_LOADED = 16
+HISTORY_LIMITS = (20, 50, 100, 200, 500, 0)   # 0 = unlimited
 
 # --------------------------------------------------------------------------- DPI
 try:
@@ -2419,18 +2420,42 @@ class App:
         if self.autosave.get():
             self._export_auto(it)
 
+    def _history_limit(self):
+        try:
+            return max(0, int(self.st.get("history_limit", 200)))
+        except (TypeError, ValueError):
+            return 200
+
     def _prune(self):
-        lim = int(self.st.get("history_limit", 200))
+        """Drop the oldest screenshots beyond the history limit (0 = unlimited)."""
+        lim = self._history_limit()
+        if not lim:
+            return
         while len(self.items) > lim:
             old = self.items.pop()
+            self._forget_jobs(old)
             if old in self.board:
                 self.board.remove(old)
             self._delete_files(old)
+            if old is self.sel:
+                self.sel, self.sel_obj, self.editing = None, None, None
+        self._save_board()
+
+    def set_history_limit(self, lim):
+        """Options menu: change the history limit, deleting the oldest extras after one confirmation."""
+        extra = self.items[lim:] if lim else []
+        if extra:
+            self.delete_many(extra)
+            if any(it in self.items for it in extra):   # cancelled
+                self._limit_var.set(self._history_limit())
+                return
+        self.st["history_limit"] = lim
+        save_settings(self.st)
 
     # ===================================================================== persistence
     def _persist_new(self, it):
-        if not self.keep_history.get():
-            return
+        # The PNG is always written, so that the full image can be dropped from memory and reloaded
+        # on demand (see img_of / _evict). Without "Keep history" it is deleted again on close.
         os.makedirs(SESSION_DIR, exist_ok=True)
         img = it["orig"]
         p = os.path.join(SESSION_DIR, it["id"] + ".png")
@@ -2484,8 +2509,24 @@ class App:
             except OSError:
                 pass
 
+    def _purge_session_dir(self):
+        """Temporary board: remove files left in the session folder (e.g. after a crash)."""
+        try:
+            for fn in os.listdir(SESSION_DIR):
+                if fn.endswith((".png", ".json", ".tmp")):
+                    try:
+                        os.remove(os.path.join(SESSION_DIR, fn))
+                    except OSError:
+                        pass
+        except OSError:
+            pass
+
     def _load_history(self):
-        if not self.keep_history.get() or not os.path.isdir(SESSION_DIR):
+        if not self.keep_history.get():
+            self._purge_session_dir()
+            self.render()
+            return
+        if not os.path.isdir(SESSION_DIR):
             self.render()
             return
         metas = []
@@ -2532,6 +2573,7 @@ class App:
             pass
         self.board = [byid[i] for i in order if i in byid]
         self.board += [it for it in reversed(self.items) if it not in self.board]
+        self._prune()
         if self.items:
             self.st["next_num"] = max(self.st["next_num"], max(i["num"] for i in self.items) + 1)
         self._rebuild_list()
@@ -2565,13 +2607,14 @@ class App:
     def _thumb(self, it):
         t = self.final(it).copy()
         t.thumbnail((int(180 * self.k), int(112 * self.k)), Image.LANCZOS)
-        it["_thumb"] = ImageTk.PhotoImage(t)
+        it["_thumb"] = ImageTk.PhotoImage(t)   # cached: rebuilding the list must not reload every image
+        it["_thumb_stale"] = False
         return it["_thumb"]
 
     def _make_card(self, it):
         fr = tk.Frame(self.list_frame, bg=PANEL, highlightthickness=2, highlightbackground=PANEL, padx=4, pady=4)
         fr.pack(fill="x", padx=6, pady=2)
-        img = tk.Label(fr, image=self._thumb(it), bg=PANEL)
+        img = tk.Label(fr, image=self._thumb(it) if it.get("_thumb") is None or it.get("_thumb_stale") else it["_thumb"], bg=PANEL)
         img.pack()
         cap = tk.Label(fr, bg=PANEL, font=UI_S, fg=MUTED, anchor="w")
         cap.pack(fill="x")
@@ -3101,6 +3144,7 @@ class App:
             if any(o["type"] in ("dist", "perim", "area") for o in it["objs"]):
                 it["_final"] = None
                 it["_gkey"] = None
+                it["_thumb_stale"] = True
         self.render()
 
     def _fs(self):
@@ -4024,6 +4068,15 @@ class App:
         m.add_command(label=tr("Open auto-save folder"), command=self._open_dir)
         m.add_separator()
         m.add_checkbutton(label=tr("Keep history between launches"), variable=self.keep_history, command=self._opts_changed)
+        hm = tk.Menu(m, tearoff=0, font=UI)
+        self._limit_var = tk.IntVar(value=self._history_limit())
+        lims = list(HISTORY_LIMITS)
+        if self._history_limit() not in lims:
+            lims.insert(0, self._history_limit())
+        for n in lims:
+            hm.add_radiobutton(label=tr("Unlimited") if n == 0 else tr("Last {n} screenshots", n=n), value=n,
+                               variable=self._limit_var, command=lambda n=n: self.set_history_limit(n))
+        m.add_cascade(label=tr("History limit"), menu=hm)
         m.add_command(label=tr("Clear history…"), command=self.clear_history)
         m.add_separator()
         m.add_command(label=tr("Remove all annotations on this screenshot"), command=self.clear_marks)
@@ -4210,8 +4263,11 @@ class App:
         if self.keep_history.get():
             for it in self.items:
                 p = os.path.join(SESSION_DIR, it["id"] + ".png")
-                if not os.path.exists(p):
+                if not os.path.exists(p) and it.get("orig") is not None:
                     self._persist_new(it)
+                else:
+                    self._save_meta(it)
+            self._save_board()
 
     def _choose_dir(self):
         d = filedialog.askdirectory(parent=self.root, initialdir=self.st.get("save_dir"), title=tr("Auto-save folder"))
@@ -4292,6 +4348,7 @@ class App:
         for it in self.items:
             it["_final"] = None
             it["_gkey"] = None
+            it["_thumb_stale"] = True
         self._update_panel()
         self.render()
 
