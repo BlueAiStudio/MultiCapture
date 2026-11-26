@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Board report** (Save menu → "Export board as a report (PDF / Word)…"): the screenshots of the current view with a title, the date, each screenshot's notes and measurements, and a measurement summary table. Saved as PDF (A4) or Word .docx. No new dependency: the .docx is written directly, so the exe and the Store package need nothing extra.
+- **Measurement table** (Save menu → "Copy board measurements as a table (Excel)"): every distance, area, perimeter, angle and scale reference on the board, copied as a table that pastes into Excel.
 - **3D look for shapes**: select a rectangle, ellipse or area polygon and click **Make 3D** (right panel or right-click menu) to turn it into a shaded box, cylinder or prism. Drag the orange ◆ handle to set the depth and the angle; **Pocket (cut)** cuts a hole into the front face. Hidden edges show dashed through see-through solids. It is a drawing on the screenshot (no real 3D model) and is flattened like any other annotation when copying or exporting.
 - **Paint-style drawing tools** (like the Paint app in Windows):
   - **Eraser** (`X`): rubs out pen and highlighter strokes and fills where you drag; other annotations it touches are removed. The screenshot itself is never erased. The line width sets the eraser size.
