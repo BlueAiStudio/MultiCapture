@@ -293,5 +293,24 @@ app.sym_win.destroy()
 app.set_tool("select")
 print("table OK")
 
+# Undo / redo buttons in the top bar: greyed when there is nothing to undo / redo
+it = app.sel
+n = len(it["objs"])
+it["redo"].clear()
+app._update_undo_btns()
+assert app.undo_btn._enabled and not app.redo_btn._enabled
+app.undo_btn._click(None)
+pump(0.1)
+assert app.redo_btn._enabled
+app.redo_btn._click(None)
+pump(0.1)
+assert len(it["objs"]) == n and not app.redo_btn._enabled
+it["undo"].clear()
+app._update_undo_btns()
+assert not app.undo_btn._enabled
+app.undo_btn._click(None)       # greyed: does nothing
+assert len(it["objs"]) == n
+print("undo / redo buttons OK")
+
 app._shutdown()
 print("ALL OK")
