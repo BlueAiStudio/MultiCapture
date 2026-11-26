@@ -46,6 +46,16 @@ class SolidTests(unittest.TestCase):
         self.assertLess(bb[1], 41)
         self.assertGreater(bb[3], 140)
 
+    def test_rotate_turns_depth(self):
+        import paint
+        o = solid3d.make_solid({"type": "rect", "box": [10, 10, 50, 40], "color": "#1E88E5", "width": 2})
+        o["solid"].update(depth=20, ang=0)                                       # depth points right
+        r = paint.transform_objs([o], "rot_cw", (100, 80))[0]
+        self.assertAlmostEqual(r["solid"]["ang"], 270, delta=0.1)                # now points down
+        self.assertEqual(o["solid"]["ang"], 0)                                   # original untouched
+        f = paint.transform_objs([o], "flip_h", (100, 80))[0]
+        self.assertAlmostEqual(f["solid"]["ang"], 180, delta=0.1)
+
 
 if __name__ == "__main__":
     unittest.main()
