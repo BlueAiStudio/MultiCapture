@@ -444,5 +444,39 @@ pump(0.5)
 assert root.state() == "normal", root.state()
 print("stays maximized after capture OK")
 
+# a window saved on a bigger screen is pulled back inside the work area
+assert mc.fit_geometry("1440x880+600+400", (0, 0, 1366, 728)) == "1366x696+0+0", mc.fit_geometry("1440x880+600+400", (0, 0, 1366, 728))
+assert mc.fit_geometry("1000x600+100+50", (0, 0, 1920, 1040)) == "1000x600+100+50"
+assert mc.fit_geometry("1000x600+-8+-8", (0, 0, 1920, 1040)) == "1000x600+0+0"
+assert mc.fit_geometry("1000x600+2500+50", (1920, 0, 3840, 1040)) == "1000x600+2500+50"
+assert mc.fit_geometry("garbage", (0, 0, 100, 100)) == "garbage"
+print("window kept on screen OK")
+
+# the header switches to icons only when it does not fit, and back
+# (no pumping in between: on the small CI screen the header refits itself on every <Configure>)
+app._set_head_compact(False)
+full = {w: w.cget("text") for w in app._head_labels()}
+app._set_head_compact(True)
+assert app.save_btn.cget("text") != full[app.save_btn], app.save_btn.cget("text")
+app._set_head_compact(False)
+assert all(w.cget("text") == t for w, t in full.items())
+root.geometry(f"{root.minsize()[0]}x700")
+pump(0.5)
+app._fit_header()
+pump(0.3)
+assert app.head.winfo_reqwidth() <= app.head.winfo_width() + 2, (app.head.winfo_reqwidth(), app.head.winfo_width())
+print("header fits a narrow window OK", "compact" if app._head_compact else "full")
+
+# the window has our own big and small icons (taskbar button), also when run from source
+import ctypes  # noqa: E402
+_u = ctypes.WinDLL("user32")
+_u.SendMessageW.restype = ctypes.c_void_p
+_u.SendMessageW.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_size_t, ctypes.c_void_p]
+_hwnd = int(root.wm_frame(), 16)
+print("window icons:", _hwnd, _u.SendMessageW(_hwnd, 0x007F, 1, None), _u.SendMessageW(_hwnd, 0x007F, 0, None),
+      mc.set_window_icons(root, os.path.join(mc.RES_DIR, "multicapture.ico")))
+assert _u.SendMessageW(_hwnd, 0x007F, 1, None) and _u.SendMessageW(_hwnd, 0x007F, 0, None)   # WM_GETICON
+print("window icons OK")
+
 app._shutdown()
 print("ALL OK")

@@ -29,7 +29,7 @@ import tkinter as tk
 import zlib
 from tkinter import ttk
 
-from PIL import Image, ImageDraw, ImageTk
+from PIL import Image, ImageChops, ImageDraw, ImageTk
 
 from i18n import tr
 
@@ -634,10 +634,24 @@ def find_shift(prev, cur):
     return None
 
 
+def moving_span(a, b, pad=8):
+    """(x0, x1) of the columns that changed between two frames, or None if nothing changed.
+    Used to find the one panel that scrolls when the region also covers parts that stay still
+    (a side pane, a dialog's comment column...)."""
+    diff = ImageChops.difference(a.convert("L"), b.convert("L")).point(lambda v: 255 if v > 24 else 0)
+    box = diff.getbbox()
+    if not box:
+        return None
+    return max(0, box[0] - pad), min(a.width, box[2] + pad)
+
+
 class Stitcher:
-    """Builds one tall image from frames of a region that scrolls downwards."""
+    """Builds one tall image from frames of a region that scrolls downwards.
+    If only part of the width scrolls (an inner panel), the result keeps only that part."""
 
     def __init__(self, first, max_h=20000):
+        self.x0, self.x1 = 0, first.width
+        self.span_known = False
         self.w = first.width
         self.strips = [first]
         self.last, self.last_sig = first, row_sigs(first)
@@ -648,6 +662,20 @@ class Stitcher:
 
     def add(self, img):
         """Returns 'same', 'added', 'lost' (no overlap found - scroll back / slower) or 'full'."""
+        if not self.span_known:
+            span = moving_span(self.last, img)
+            if span is None:
+                return "same"
+            self.span_known = True
+            x0, x1 = span
+            if 60 <= x1 - x0 < 0.9 * img.width:      # only an inner panel moves: keep just that panel
+                self.x0, self.x1, self.w = x0, x1, x1 - x0
+                h0 = self.strips[0].height
+                self.strips[0] = self.strips[0].crop((x0, 0, x1, h0))
+                self.last = self.last.crop((x0, 0, x1, self.last.height))
+                self.last_sig = row_sigs(self.last)
+        if self.x1 - self.x0 != img.width:
+            img = img.crop((self.x0, 0, self.x1, img.height))
         sig = row_sigs(img)
         r = find_shift(self.last_sig, sig)
         if r is None:

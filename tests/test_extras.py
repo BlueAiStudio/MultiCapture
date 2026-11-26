@@ -80,6 +80,30 @@ class StitchTest(unittest.TestCase):
     def test_end_of_page(self):
         self.run_case(0, 0, [300] * 15)     # last steps hit the bottom and do not move
 
+    def test_inner_panel(self):
+        """Only the left panel scrolls; a busy side pane on the right stays still."""
+        doc = page(w=400)
+        side = page(w=200, h=400, seed=7)
+        vh = 400
+
+        def frame(top):
+            out = Image.new("RGB", (620, vh), "white")
+            out.paste(doc.crop((0, top, 400, top + vh)), (10, 0))
+            out.paste(side, (420, 0))
+            return out
+        st = extras.Stitcher(frame(0))
+        top = 0
+        for s in [120, 150, 90, 200]:
+            top += s
+            self.assertEqual(st.add(frame(top)), "added")
+        res = st.result()
+        self.assertLess(res.width, 420)                 # the still side pane is left out
+        self.assertEqual(res.height, top + vh)
+        dx = st.x0 - 10                                 # where the result starts inside the panel
+        self.assertGreaterEqual(dx, 0)
+        w = min(res.width, doc.width - dx)
+        self.assertEqual(res.crop((0, 0, w, res.height)).tobytes(), doc.crop((dx, 0, dx + w, top + vh)).tobytes())
+
     def test_identical(self):
         im = page(h=400)
         self.assertEqual(extras.find_shift(extras.row_sigs(im), extras.row_sigs(im))[0], 0)
