@@ -22,6 +22,7 @@ The built-in Snipping Tool keeps one capture at a time. MultiCapture keeps **all
 - **Tables**: choose rows × columns, drag onto the image, type in the cells (Tab / Enter to move), resize columns and rows, restyle at any time.
 - **Symbol panel**: ✓ ✗ ★ → ⚠ ± ° Ø ⌀ ≤ ≥ ① α … in one click, into text, table cells or as a stamp.
 - **PDF-style measurement**: distance, perimeter, area and angle, with a calibrated scale.
+- **Paint-style tools**: eraser, fill bucket, colour picker, crop, rotate / flip, resize, and a blank canvas to draw on (`Ctrl+Shift+N`). Fills and erasing stay undoable and editable.
 - **Notes panel** for each screenshot, optionally included in copies and exports.
 - **Export** to PNG / JPG / BMP / PDF, either one image or all of them (separate PNG files or one PDF).
 - **On close**, the app asks whether to save, with a choice of folder and formats.
@@ -73,6 +74,7 @@ powershell -ExecutionPolicy Bypass -File install_shortcut.ps1
 |---|---|
 | `multicapture.py` | The application |
 | `extras.py` | Optional features: pin, OCR, scrolling capture, screen recording (GIF / MP4) |
+| `paint.py` | Paint-style tools: fill bucket, eraser on fills, rotate / flip / crop / resize with annotations |
 | `i18n.py` | Translations (fr / zh) and the user guide |
 | `themes.py` | Theme packs: loading, frames, import / export, online themes |
 | `themes/` | Built-in themes, also the catalog for "Get online themes" |
@@ -94,6 +96,7 @@ Session data is stored in `%APPDATA%\MultiCapture\`.
 - 当前视图会自动复制到剪贴板，可以直接粘贴到 Outlook、Word、Excel 或 Teams；
 - 提供可编辑的标注：画笔、箭头、框、编号、印章、马赛克、标注框，以及类似 Word 的文字框（可设字体、字号、颜色，用 ✥ 拖动）；
 - 提供类似 PDF 阅读器的测量功能：距离、周长、面积、角度，可以标定比例；
+- 类似 Windows“画图”的工具：橡皮擦、油漆桶、取色器、裁剪、旋转 / 翻转、调整大小，还可以新建空白画布来画画（`Ctrl+Shift+N`）；
 - 右侧是笔记栏，可以选择是否把笔记一起复制或导出；
 - 可导出为 PNG、JPG、BMP 或 PDF；关闭软件时会提示是否保存；
 - 「删除」菜单可以删除当前截图、整个宫格或全部截图；
@@ -121,6 +124,7 @@ L'Outil Capture d'écran ne garde qu'une capture à la fois. MultiCapture les ga
 - La vue courante est copiée automatiquement dans le presse-papiers (Outlook, Word, Excel…) ;
 - Annotations modifiables et zones de texte de type Word ;
 - Mesures façon PDF : distance, périmètre, surface, angle ;
+- Outils façon Paint : gomme, pot de peinture, pipette, rognage, rotation / miroir, redimensionnement et page blanche pour dessiner (`Ctrl+Maj+N`) ;
 - Panneau de notes, export PNG / JPG / BMP / PDF, demande d'enregistrement à la fermeture ;
 - Interface en français, anglais et chinois, avec un guide intégré ;
 - Fonctions facultatives, désactivées par défaut (Options → Fonctions supplémentaires) : épingler à l'écran, reconnaissance de texte (OCR de Windows, hors ligne), capture défilante, enregistrement d’écran en MP4 ou GIF ;

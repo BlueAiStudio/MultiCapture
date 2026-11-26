@@ -104,7 +104,9 @@ my-theme/                 文件夹名就是主题 id：只能用小写英文字
 | `rect.png` | 矩形 | `area.png` | 测面积 |
 | `ellipse.png` | 椭圆 | `angle.png` | 测角度 |
 | `text.png` | 文本框 | `calib.png` | 校准比例 |
-| `callout.png` | 标注框 | `table.png` | 表格 |
+| `callout.png` | 标注框 | `eraser.png` | 橡皮擦 |
+| `fill.png` | 油漆桶 | `picker.png` | 取色器 |
+| `crop.png` | 裁剪 | `table.png` | 表格 |
 
 顶栏按钮：`capture.png`（新建截图）、`copy.png`（复制）、`save.png`（保存）、`delete.png`（删除）、`options.png`（选项）、`themes.png`（主题）、`help.png`（帮助）；扩展功能打开后的按钮：`pin.png`（贴图）、`ocr.png`（识字）、`record.png`（录屏）。
 
@@ -246,7 +248,7 @@ webp, bmp, txt, md; at most 8 MB per file and 4096 × 4096 per image.
 The colour names, icon names and every frame option are listed in the tables of the Chinese section above.
 
 - **Icon keys:** tools `select pen highlight line arrow rect ellipse text callout marker stamp mosaic dist perim
-  area angle calib table`; header `capture copy save delete options themes help`, extra-feature buttons `pin ocr record`.
+  area angle calib eraser fill picker crop table`; header `capture copy save delete options themes help`, extra-feature buttons `pin ocr record`.
 - **Decorations:** `header` (right end of the header bar) and `canvas` (behind the screenshot; `anchor` is one of
   `nw n ne w center e sw s se tile`, plus `margin`).
 - **Frame, style:** `margin`, `canvas`, `padding`, `background`, `radius`, `border {color, width}`,
@@ -289,7 +291,7 @@ tableaux de la partie chinoise ci-dessus ; les noms sont les mêmes dans toutes 
   `button`, `button_hover`, `hover`, `icon` (couleur des icônes par défaut : à éclaircir pour un thème sombre),
   `icon_accent`, `shadow`, `notes_bg`, `field`, `tooltip_bg`, `tooltip_text`, `success`. Format `#RRGGBB`.
 - **Noms des icônes :** outils `select pen highlight line arrow rect ellipse text callout marker stamp mosaic dist
-  perim area angle calib table` ; barre du haut `capture copy save delete options themes help` ; boutons des fonctions
+  perim area angle calib eraser fill picker crop table` ; barre du haut `capture copy save delete options themes help` ; boutons des fonctions
   supplémentaires `pin ocr record`.
 - **Décorations :** `header` (à droite de la barre du haut) et `canvas` (derrière la capture ; `anchor` vaut
   `nw n ne w center e sw s se` ou `tile`, plus `margin`).

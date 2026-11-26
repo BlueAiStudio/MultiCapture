@@ -100,6 +100,17 @@ class TableTest(unittest.TestCase):
         self.assertEqual(mc.obj_bbox(o), [110, 55, 310, 145])
 
 
+    def test_rotate_keeps_table_upright(self):
+        import paint
+        o = table()
+        out = paint.transform_objs([o], "rot_cw", (400, 200))[0]
+        x0, y0, x1, y1 = out["box"]
+        self.assertAlmostEqual(x1 - x0, 200)          # same size, not turned on its side
+        self.assertAlmostEqual(y1 - y0, 90)
+        self.assertAlmostEqual((x0 + x1) / 2, 200 - 95)   # centre (200, 95) -> (H - y, x)
+        self.assertAlmostEqual((y0 + y1) / 2, 200)
+
+
 class SymbolTest(unittest.TestCase):
     def test_runs(self):
         font = mc.pil_font("Segoe UI", 20)[0]
