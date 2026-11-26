@@ -197,9 +197,14 @@ assert app.selected_objs() == []
 tb = app._new_table(30, 100)                    # table size through the shared property code
 it["objs"].append(tb)
 app.select_obj(tb)
+rows_before = app.table_rows.get()
 app.table_rows.set(5)
 app.on_prop("table_size")
 assert len(tb["rh"]) == 5, len(tb["rh"])
+app.select_obj(None)
+app.table_rows.set(rows_before)                 # later tests expect the default table size
+app.on_prop("table_size")
+assert app.st["table_rows"] == rows_before
 it["objs"], it["undo"], it["redo"] = kept
 app.changed()
 print("multi-select annotations OK")
