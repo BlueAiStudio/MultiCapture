@@ -31,7 +31,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 FORMAT = 1
 DEFAULT_ID = "default"
-REPO = "Blueaistudio/MultiCapture"
+REPO = "BlueAiStudio/MultiCapture"
 BRANCH = "main"
 REMOTE_DIR = "themes"
 

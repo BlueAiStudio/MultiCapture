@@ -2,13 +2,13 @@
 PackageIdentifier: xieganglaoliu.MultiCapture
 PackageVersion: 1.4.0
 PackageLocale: en-US
-Publisher: Blueaistudio
-PublisherUrl: https://github.com/Blueaistudio
-PublisherSupportUrl: https://github.com/Blueaistudio/MultiCapture/issues
+Publisher: BlueAiStudio
+PublisherUrl: https://github.com/BlueAiStudio
+PublisherSupportUrl: https://github.com/BlueAiStudio/MultiCapture/issues
 PackageName: MultiCapture
-PackageUrl: https://github.com/Blueaistudio/MultiCapture
+PackageUrl: https://github.com/BlueAiStudio/MultiCapture
 License: MIT
-LicenseUrl: https://github.com/Blueaistudio/MultiCapture/blob/main/LICENSE
+LicenseUrl: https://github.com/BlueAiStudio/MultiCapture/blob/main/LICENSE
 ShortDescription: Multi-screenshot board for Windows - every capture is kept, laid out in a grid, annotated and copied.
 Description: |-
   The built-in Snipping Tool keeps one capture at a time. MultiCapture keeps all of them in a history panel,
@@ -21,6 +21,6 @@ Tags:
 - snipping
 - annotation
 - productivity
-ReleaseNotesUrl: https://github.com/Blueaistudio/MultiCapture/releases/tag/v1.4.0
+ReleaseNotesUrl: https://github.com/BlueAiStudio/MultiCapture/releases/tag/v1.4.0
 ManifestType: defaultLocale
 ManifestVersion: 1.6.0
