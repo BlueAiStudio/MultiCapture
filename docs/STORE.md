@@ -20,6 +20,11 @@ Microsoft's certificate, so Store users never see the SmartScreen "unknown app" 
   | `Publisher`            | Package/Identity/Publisher (`CN=…`)      |
   | `PublisherDisplayName` | Package/Properties/PublisherDisplayName  |
 
+  `PublisherDisplayName` must match the publisher display name in Partner Center → Account settings →
+  Legal info → Developer (now **BlueAiStudio**). `IdentityName` and `Publisher` must never change: they are
+  the app's identity, and a package with other values is refused as an update. The GitHub account was
+  renamed from `xieganglaoliu` to `BlueAiStudio`; the old name stays only in these identity values.
+
 - Version: taken from `VERSION` in `multicapture.py` (`1.4.0` → `1.4.0.0`). Each Store upload needs a
   higher version than the last one.
 - Store version data folder: `%LOCALAPPDATA%\Packages\<package family>\LocalState\MultiCapture`
@@ -31,9 +36,9 @@ Microsoft's certificate, so Store users never see the SmartScreen "unknown app" 
 |---|---|
 | Pricing | Free |
 | Category | Productivity (subcategory: none) — or Utilities & tools |
-| Privacy policy URL | https://github.com/xieganglaoliu/MultiCapture/blob/main/PRIVACY.md |
-| Website | https://github.com/xieganglaoliu/MultiCapture |
-| Support contact | https://github.com/xieganglaoliu/MultiCapture/issues |
+| Privacy policy URL | https://github.com/BlueAiStudio/MultiCapture/blob/main/PRIVACY.md |
+| Website | https://github.com/BlueAiStudio/MultiCapture |
+| Support contact | https://github.com/BlueAiStudio/MultiCapture/issues |
 | Age rating questionnaire | No user interaction, no shared content, no purchases, no location → expected rating 3+ / Everyone |
 | Restricted capability `runFullTrust` justification | Desktop (Win32) app: it captures the screen, registers the global hotkey Ctrl+Alt+S and writes images to folders the user picks. |
 | Notes for certification | No account or test credentials needed. Press Ctrl+Alt+S (or the Capture button) and drag a region. Network is only used when the user clicks "Get online themes". |

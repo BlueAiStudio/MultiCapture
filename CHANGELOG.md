@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Publisher is now BlueAiStudio**: the GitHub account moved from `xieganglaoliu` to `BlueAiStudio`. Online themes, links and the Store publisher name use the new name. The app is still called MultiCapture, and the Store package identity is unchanged, so it updates as before.
 - **Taskbar icon when running from source**: the window now sets its own big and small icons, and `install_shortcut.ps1 -Source` creates a Start-menu shortcut that starts `multicapture.py` with `pythonw.exe`, with the MultiCapture icon and the app's taskbar ID, so the taskbar shows MultiCapture instead of the Python icon and pinning works.
 - **Narrow windows**: when the window is too narrow for the whole top bar (e.g. not maximized, or in French), the buttons show only their icons (the tooltip still names them) instead of being cut off at the right edge. A window saved on a larger or another screen is moved and shrunk back inside the screen on start.
 - **Scrolling capture of an inner panel**: when the rectangle also covers parts that stay still (a dialog's side pane, a comment column, a page sidebar), only the panel that scrolls was not recognised and the capture lost track. The moving panel is now found from the first scroll step, and the long image keeps just that panel.
