@@ -45,7 +45,7 @@ Switch each one on in **Options → Extra features**. While a feature is off it 
 
 ### Download
 
-Get `MultiCapture.exe` from the [latest release](https://github.com/xieganglaoliu/MultiCapture/releases/latest). It is portable: no installer and no Python needed. Windows SmartScreen may warn because the exe is not code-signed; choose **More info → Run anyway**.
+Get `MultiCapture.exe` from the [latest release](https://github.com/Blueaistudio/MultiCapture/releases/latest). It is portable: no installer and no Python needed. Windows SmartScreen may warn because the exe is not code-signed; choose **More info → Run anyway**.
 
 ### Run from source
 
@@ -123,7 +123,7 @@ Session data is stored in `%APPDATA%\MultiCapture\`.
 - **长截图 / 滚动截图**：截图模式中多出「长截图」，自动滚动窗口并拼接成一张长图；
 - **录屏 MP4 / GIF**（`Ctrl+R`）：把屏幕区域或全屏录成 MP4 视频（不限时长，可录麦克风和/或系统声音）或 GIF 动图（最长 60 秒），每秒 5 / 10 / 15 帧。.exe 已自带 MP4 和录音；源码运行需 `pip install imageio-ffmpeg pyaudiowpatch`。
 
-下载：在 [Releases](https://github.com/xieganglaoliu/MultiCapture/releases/latest) 页面下载 `MultiCapture.exe`，免安装、不需要 Python。
+下载：在 [Releases](https://github.com/Blueaistudio/MultiCapture/releases/latest) 页面下载 `MultiCapture.exe`，免安装、不需要 Python。
 
 运行源码：`pip install -r requirements.txt`，然后执行 `python multicapture.py`。打包：运行 `build.ps1`，生成的 `dist\MultiCapture.exe` 是免安装版，双击即可使用。
 
@@ -146,7 +146,7 @@ L'Outil Capture d'écran ne garde qu'une capture à la fois. MultiCapture les ga
 - Fonctions facultatives, désactivées par défaut (Options → Fonctions supplémentaires) : épingler à l'écran, reconnaissance de texte (OCR de Windows, hors ligne), capture défilante, enregistrement d’écran en MP4 ou GIF ;
 - Thèmes : couleurs, icône de chaque fonction, décorations et cadre pour les captures copiées ou exportées ; nouveaux thèmes en ligne ou [faits par vous](docs/THEMES.md).
 
-Téléchargement : `MultiCapture.exe` dans les [Releases](https://github.com/xieganglaoliu/MultiCapture/releases/latest), sans installation ni Python.
+Téléchargement : `MultiCapture.exe` dans les [Releases](https://github.com/Blueaistudio/MultiCapture/releases/latest), sans installation ni Python.
 
 Lancement : `pip install -r requirements.txt`, puis `python multicapture.py`. Pour créer l'exe portable, lancez `build.ps1`.
 

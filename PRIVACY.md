@@ -22,7 +22,7 @@ MultiCapture does not collect, send or sell any personal data.
 - **Clipboard**: the app puts the current view on the clipboard when you copy (or automatically if you turn
   auto-copy on). It does not read other data from the clipboard.
 
-Questions: open an issue at https://github.com/xieganglaoliu/MultiCapture/issues
+Questions: open an issue at https://github.com/Blueaistudio/MultiCapture/issues
 
 ## 中文
 
@@ -37,7 +37,7 @@ MultiCapture 不收集、不上传、也不出售任何个人数据。
 - **可选功能**（文字识别、置顶贴图、滚动截图、GIF 录制）默认关闭，并且全部离线运行。文字识别使用的是你电脑上 Windows 自带的 OCR。
 - **剪贴板**：复制时（或你打开了自动复制时），程序把当前视图放到剪贴板。它不会读取剪贴板里的其他内容。
 
-有问题请在 https://github.com/xieganglaoliu/MultiCapture/issues 提交。
+有问题请在 https://github.com/Blueaistudio/MultiCapture/issues 提交。
 
 ## Français
 
@@ -57,4 +57,4 @@ MultiCapture ne collecte, n'envoie et ne vend aucune donnée personnelle.
 - **Presse-papiers** : l'application y place la vue actuelle quand vous copiez (ou automatiquement si la copie
   automatique est activée). Elle ne lit pas le reste du presse-papiers.
 
-Questions : https://github.com/xieganglaoliu/MultiCapture/issues
+Questions : https://github.com/Blueaistudio/MultiCapture/issues
